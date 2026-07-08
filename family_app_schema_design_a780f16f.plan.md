@@ -4,7 +4,7 @@ overview: Define functional/non-functional requirements and a relational schema 
 todos:
   - id: phase-0
     content: "Phase 0 — Project foundation (repo, API shell, DB, Expo app)"
-    status: pending
+    status: completed
   - id: phase-1
     content: "Phase 1 — Auth, profiles, family creation & invites"
     status: pending

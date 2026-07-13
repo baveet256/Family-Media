@@ -121,7 +121,9 @@ CLAUDE.md
 google-services.json
 GoogleService-Info.plist
 
-# --- Misc ---
+# --- Web (Vite preview) ---
+web/dist/
+web/node_modules/
 *.local
 .vercel
 .netlify

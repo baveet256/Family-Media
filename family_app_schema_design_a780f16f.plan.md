@@ -6,8 +6,8 @@ todos:
     content: "Phase 0 — Project foundation (repo, API shell, DB, Expo app)"
     status: completed
   - id: phase-1
-    content: "Phase 1 — Auth, profiles, family creation & invites"
-    status: pending
+    content: "Phase 1 — Auth, profiles, family creation & invites (Step 1 schema done)"
+    status: in_progress
   - id: phase-2
     content: "Phase 2 — Onboarding questions & emergent family tree"
     status: pending

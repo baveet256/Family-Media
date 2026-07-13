@@ -4,11 +4,15 @@
   "scripts": {
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
+    "kill:dev": "bash scripts/kill-dev.sh",
     "api:dev": "npm run start:dev --prefix api",
+    "api:fast": "bash scripts/start-api.sh",
     "api:build": "npm run build --prefix api",
     "api:lint": "npm run lint --prefix api",
     "api:test": "npm run test --prefix api",
     "mobile:dev": "npm run start --prefix mobile",
+    "web:dev": "npm run dev --prefix web",
+    "web:install": "npm install --prefix web",
     "db:migrate": "npm run prisma:migrate --prefix api",
     "db:deploy": "npm run prisma:migrate:deploy --prefix api"
   }

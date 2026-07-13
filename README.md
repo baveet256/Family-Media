@@ -89,6 +89,80 @@ From the repo root:
 - [x] Mobile Home tab shows API health
 - [x] Empty Prisma migration runs cleanly
 
+## Troubleshooting
+
+### Both terminals stuck / nothing happens
+
+**Root cause:** You're on **Node 23** (`node -v`). React Native and NestJS watch mode hang on Node 23. Your `nvm` command is a Python package, not Node Version Manager.
+
+**Fix — install Node 22 with fnm:**
+
+```bash
+brew install fnm
+echo 'eval "$(fnm env)"' >> ~/.zshrc
+source ~/.zshrc
+fnm install 22
+fnm use 22
+node -v   # must show v22.x
+```
+
+**Then nuclear reset:**
+
+```bash
+cd Family-Media
+npm run kill:dev          # kill stuck processes
+
+# Terminal 1 — API (fast, no watch mode)
+npm run api:fast
+
+# Terminal 2 — Web browser
+cd mobile && npm run web:clear
+```
+
+`api:fast` runs the pre-built API instantly (no `nest watch` compile hang).
+
+### Expo Go says "incompatible" or app keeps loading
+
+1. **Update Expo Go** on your phone from the App Store / Play Store (SDK 57 needs the latest version).
+2. **Kill old dev servers** — only one Expo process at a time:
+   ```bash
+   lsof -ti :8081 | xargs kill -9
+   ```
+3. **Restart with clean cache:**
+   ```bash
+   cd mobile && npm run start:clear
+   ```
+4. **First bundle is slow** — can take 2–5 minutes on first load. Wait until the terminal shows `Bundled` before refreshing.
+5. **Use Node 22** (not Node 23):
+   ```bash
+   nvm install 22 && nvm use 22
+   ```
+
+### Phone can't reach API
+
+`localhost` on your phone refers to the phone itself, not your Mac. Use your Mac's LAN IP in `mobile/.env`:
+
+```
+EXPO_PUBLIC_API_URL=http://192.168.0.78:3000
+```
+
+### Browser preview (recommended — Expo web is broken on this machine)
+
+Expo `npm run web` hangs on SDK 57. Use the **Vite web app** instead:
+
+```bash
+# Terminal 1 — API (keep running)
+npm run api:fast
+
+# Terminal 2 — Browser app
+npm run web:install   # first time only
+npm run web:dev
+```
+
+Open **http://localhost:5173** — should show OK with database + redis up.
+
+### Expo / mobile (phone — optional for now)
+
 ## Roadmap
 
 See [`family_app_schema_design_a780f16f.plan.md`](family_app_schema_design_a780f16f.plan.md) for the full phased roadmap.

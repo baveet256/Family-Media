@@ -3,6 +3,10 @@ import { Platform } from 'react-native';
 const DEFAULT_PORT = 3000;
 
 function getDefaultApiUrl(): string {
+  // Browser on your laptop — API runs on same machine
+  if (Platform.OS === 'web') {
+    return `http://localhost:${DEFAULT_PORT}`;
+  }
   if (Platform.OS === 'android') {
     return `http://10.0.2.2:${DEFAULT_PORT}`;
   }
@@ -10,7 +14,9 @@ function getDefaultApiUrl(): string {
 }
 
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? getDefaultApiUrl();
+  Platform.OS === 'web'
+    ? `http://localhost:${DEFAULT_PORT}`
+    : (process.env.EXPO_PUBLIC_API_URL ?? getDefaultApiUrl());
 
 export type HealthResponse = {
   status: 'ok' | 'error';

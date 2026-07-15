@@ -89,8 +89,16 @@ From the repo root:
 - [x] Mobile Home tab shows API health
 - [x] Empty Prisma migration runs cleanly
 
+## Phase 1 exit criteria
+
+- [x] Phone OTP auth (`POST /auth/otp/send`, `POST /auth/otp/verify`) — OTP stored in Redis; `OTP_DEV_MODE` returns `devOtp`
+- [x] Profile `GET/PATCH /users/me`
+- [x] Create family + invite code / QR (`POST /families`, invite screen)
+- [x] Admin invite by phone stub (`POST /families/:id/invites`)
+- [x] Join via code → pending `join_requests` visible to admin (`POST /join-requests`, `GET /families/:id/join-requests`)
+
 ## Roadmap
 
 See [`family_app_schema_design_a780f16f.plan.md`](family_app_schema_design_a780f16f.plan.md) for the full phased roadmap.
 
-**Next:** Phase 1 — phone auth, family creation, invites.
+**Next:** Phase 2 — onboarding questions, tree, approve/reject join requests.

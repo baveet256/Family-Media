@@ -1,83 +1,92 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { API_BASE_URL, fetchHealth, type HealthResponse } from '@/lib/api';
-
-type LoadState =
-  | { kind: 'loading' }
-  | { kind: 'ok'; data: HealthResponse }
-  | { kind: 'error'; message: string };
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomeScreen() {
-  const [state, setState] = useState<LoadState>({ kind: 'loading' });
-
-  const loadHealth = useCallback(async () => {
-    setState({ kind: 'loading' });
-    try {
-      const data = await fetchHealth();
-      setState({ kind: 'ok', data });
-    } catch (error) {
-      setState({
-        kind: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadHealth();
-  }, [loadHealth]);
+  const router = useRouter();
+  const { user, families, pendingJoinRequests } = useAuth();
+  const family =
+    families.find((f) => f.status === 'active') ??
+    families.find((f) => f.role === 'admin') ??
+    families[0];
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Family Media</Text>
-      <Text style={styles.subtitle}>Private family network</Text>
+      <Text style={styles.eyebrow}>Family Media</Text>
+      <Text style={styles.title}>
+        {family ? family.name : 'Your family home'}
+      </Text>
+      <Text style={styles.subtitle}>
+        Hi {user?.displayName || 'there'} — Phase 1 family core is live.
+      </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>API connection</Text>
-        <Text style={styles.apiUrl}>{API_BASE_URL}</Text>
+      {family?.status === 'pending' ||
+      (!family && pendingJoinRequests.length > 0) ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Waiting for approval</Text>
+          <Text style={styles.detail}>
+            Your join request is pending. Admins can see it now; approve/reject
+            arrives in Phase 2.
+          </Text>
+        </View>
+      ) : null}
 
-        {state.kind === 'loading' && (
-          <ActivityIndicator style={styles.spinner} size="large" />
-        )}
+      {family && family.status !== 'pending' ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Family</Text>
+          <Text style={styles.detail}>
+            Role: {family.role}
+            {family.inviteCode ? ` · Code ${family.inviteCode}` : ''}
+          </Text>
 
-        {state.kind === 'ok' && (
-          <View style={styles.statusBlock}>
-            <Text style={styles.okBadge}>OK — {state.data.status}</Text>
-            {state.data.info && (
-              <Text style={styles.detail}>
-                Database: {state.data.info.database?.status ?? 'unknown'}
-              </Text>
-            )}
-            {state.data.info && (
-              <Text style={styles.detail}>
-                Redis: {state.data.info.redis?.status ?? 'unknown'}
-              </Text>
-            )}
+          {family.role === 'admin' && (
+            <View style={styles.actions}>
+              <Pressable
+                style={styles.button}
+                onPress={() =>
+                  router.push({
+                    pathname: '/family/invite',
+                    params: { familyId: family.id },
+                  })
+                }>
+                <Text style={styles.buttonText}>Invite</Text>
+              </Pressable>
+              <Pressable
+                style={styles.secondary}
+                onPress={() =>
+                  router.push({
+                    pathname: '/family/join-requests',
+                    params: { familyId: family.id },
+                  })
+                }>
+                <Text style={styles.secondaryText}>Join requests</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      ) : null}
+
+      {!family && pendingJoinRequests.length === 0 ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Get started</Text>
+          <Text style={styles.detail}>
+            Create a family or join with an invite code.
+          </Text>
+          <View style={styles.actions}>
+            <Pressable
+              style={styles.button}
+              onPress={() => router.push('/(auth)/create-family')}>
+              <Text style={styles.buttonText}>Create family</Text>
+            </Pressable>
+            <Pressable
+              style={styles.secondary}
+              onPress={() => router.push('/(auth)/join-code')}>
+              <Text style={styles.secondaryText}>Join with code</Text>
+            </Pressable>
           </View>
-        )}
-
-        {state.kind === 'error' && (
-          <View style={styles.statusBlock}>
-            <Text style={styles.errorBadge}>Offline</Text>
-            <Text style={styles.errorText}>{state.message}</Text>
-            <Text style={styles.hint}>
-              Make sure Docker and the API server are running.
-            </Text>
-          </View>
-        )}
-
-        <Pressable style={styles.button} onPress={() => void loadHealth()}>
-          <Text style={styles.buttonText}>Retry</Text>
-        </Pressable>
-      </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -89,18 +98,26 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     backgroundColor: '#fafafa',
   },
+  eyebrow: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
   title: {
+    marginTop: 8,
     fontSize: 28,
     fontWeight: '700',
     color: '#111',
   },
   subtitle: {
-    marginTop: 4,
+    marginTop: 6,
     fontSize: 16,
     color: '#666',
   },
   card: {
-    marginTop: 32,
+    marginTop: 28,
     padding: 20,
     borderRadius: 16,
     backgroundColor: '#fff',
@@ -114,52 +131,30 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  apiUrl: {
-    marginTop: 8,
-    fontSize: 13,
-    color: '#444',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
-  },
-  spinner: {
-    marginTop: 20,
-  },
-  statusBlock: {
-    marginTop: 16,
-    gap: 6,
-  },
-  okBadge: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#15803d',
-  },
-  errorBadge: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#b91c1c',
-  },
   detail: {
-    fontSize: 14,
+    marginTop: 10,
+    fontSize: 15,
     color: '#444',
+    lineHeight: 22,
   },
-  errorText: {
-    fontSize: 14,
-    color: '#b91c1c',
-  },
-  hint: {
-    marginTop: 4,
-    fontSize: 13,
-    color: '#888',
+  actions: {
+    marginTop: 18,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
   },
   button: {
-    marginTop: 20,
-    alignSelf: 'flex-start',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
     backgroundColor: '#111',
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
+  buttonText: { color: '#fff', fontWeight: '700' },
+  secondary: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#f3f3f3',
   },
+  secondaryText: { color: '#111', fontWeight: '700' },
 });

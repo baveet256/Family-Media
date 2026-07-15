@@ -7,4 +7,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Phase 0: migration tooling only — domain models added in Phase 1+
+enum MembershipRole {
+  admin
+  member
+}
+
+enum MembershipStatus {
+  pending
+  active
+  removed
+}
+
+enum JoinRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  phone       String   @unique
+  displayName String   @default("") @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships  FamilyMembership[]
+  joinRequests JoinRequest[]
+
+  @@map("users")
+}
+
+model Family {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  avatarUrl  String?  @map("avatar_url")
+  inviteCode String   @unique @map("invite_code")
+  settings   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  memberships  FamilyMembership[]
+  joinRequests JoinRequest[]
+
+  @@map("families")
+}
+
+model FamilyMembership {
+  id       String           @id @default(uuid()) @db.Uuid
+  familyId String           @map("family_id") @db.Uuid
+  userId   String           @map("user_id") @db.Uuid
+  role     MembershipRole
+  status   MembershipStatus @default(pending)
+  joinedAt DateTime         @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId])
+  @@index([userId])
+  @@map("family_memberships")
+}
+
+model JoinRequest {
+  id         String            @id @default(uuid()) @db.Uuid
+  familyId   String            @map("family_id") @db.Uuid
+  userId     String            @map("user_id") @db.Uuid
+  status     JoinRequestStatus @default(pending)
+  inviteCode String?           @map("invite_code")
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, status])
+  @@index([userId])
+  @@map("join_requests")
+}

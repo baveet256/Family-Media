@@ -7,7 +7,7 @@ todos:
     status: completed
   - id: phase-1
     content: "Phase 1 — Auth, profiles, family creation & invites"
-    status: pending
+    status: completed
   - id: phase-2
     content: "Phase 2 — Onboarding questions & emergent family tree"
     status: pending
@@ -888,9 +888,9 @@ flowchart LR
 
 ---
 
-## Suggested next step
+**Suggested next step**
 
-Start **Phase 0**:
-1. Create `docs/phases.md` (this roadmap) and `docs/schema.sql` (full DDL, migrate per phase)
-2. Scaffold `api/` + `mobile/` + Docker Compose
-3. Proceed to **Phase 1** once health check passes
+Start **Phase 2**:
+1. Placement questionnaire + `persons` / `relationships`
+2. Admin approve/reject join requests
+3. Interactive tree viewer

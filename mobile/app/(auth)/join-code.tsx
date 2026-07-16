@@ -28,8 +28,12 @@ export default function JoinCodeScreen() {
       const result = await createJoinRequest(token, code.trim());
       await refresh();
       setDone(
-        `Join request sent to ${result.joinRequest.family.name}. Waiting for admin approval (Phase 2).`,
+        `Joined request for ${result.joinRequest.family.name}. Next: place yourself on the tree.`,
       );
+      router.replace({
+        pathname: '/onboarding',
+        params: { joinRequestId: result.joinRequest.id },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not join');
     } finally {

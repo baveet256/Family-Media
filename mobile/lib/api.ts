@@ -41,6 +41,7 @@ export type FamilySummary = {
   inviteCode: string;
   role: 'admin' | 'member';
   status?: 'pending' | 'active' | 'removed';
+  personId?: string | null;
   settings?: {
     requireApproval: boolean;
     whoCanInvite: string;
@@ -62,11 +63,14 @@ export type MeResponse = {
   pendingJoinRequests: Array<{
     id: string;
     status: string;
+    hasOnboarding?: boolean;
     family: { id: string; name: string; avatarUrl: string | null };
     createdAt: string;
   }>;
   needsProfile: boolean;
   needsFamily: boolean;
+  needsOnboarding: boolean;
+  onboardingJoinRequestId: string | null;
 };
 
 export type JoinRequestRow = {
@@ -74,12 +78,43 @@ export type JoinRequestRow = {
   status: string;
   inviteCode: string | null;
   createdAt: string;
+  hasOnboarding?: boolean;
+  onboardingKeys?: string[];
   user: {
     id: string;
     phone: string;
     displayName: string;
     avatarUrl: string | null;
   };
+};
+
+export type PersonRef = {
+  personId?: string;
+  name?: string;
+  phone?: string;
+};
+
+export type TreeNode = {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  userId: string | null;
+  isPlaceholder: boolean;
+  phone?: string | null;
+};
+
+export type TreeEdge = {
+  id: string;
+  fromPersonId: string;
+  toPersonId: string;
+  type: 'parent_of' | 'spouse_of' | 'sibling_of';
+  source: string;
+};
+
+export type FamilyTree = {
+  family: { id: string; name: string; avatarUrl: string | null };
+  nodes: TreeNode[];
+  edges: TreeEdge[];
 };
 
 class ApiError extends Error {
@@ -254,11 +289,75 @@ export async function createJoinRequest(token: string, inviteCode: string) {
       family: { id: string; name: string; avatarUrl: string | null };
     };
     alreadyPending: boolean;
+    needsOnboarding?: boolean;
   }>('/join-requests', {
     method: 'POST',
     token,
     body: JSON.stringify({ inviteCode }),
   });
+}
+
+export async function submitOnboarding(
+  token: string,
+  joinRequestId: string,
+  body: {
+    parent: PersonRef;
+    spouse?: PersonRef | null;
+    siblings?: PersonRef[];
+  },
+) {
+  return apiFetch<{
+    ok?: boolean;
+    awaitingApproval?: boolean;
+    message?: string;
+    status?: string;
+    personId?: string;
+  }>(`/join-requests/${joinRequestId}/onboarding`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function approveJoinRequest(token: string, joinRequestId: string) {
+  return apiFetch<{ ok: boolean; personId?: string; status?: string }>(
+    `/join-requests/${joinRequestId}/approve`,
+    { method: 'POST', token },
+  );
+}
+
+export async function rejectJoinRequest(token: string, joinRequestId: string) {
+  return apiFetch<{ ok: boolean; status?: string }>(
+    `/join-requests/${joinRequestId}/reject`,
+    { method: 'POST', token },
+  );
+}
+
+export async function fetchFamilyTree(token: string, familyId: string) {
+  return apiFetch<FamilyTree>(`/families/${familyId}/tree`, { token });
+}
+
+export async function listFamilyPersons(token: string, familyId: string) {
+  return apiFetch<{
+    persons: Array<{
+      id: string;
+      displayName: string;
+      avatarUrl: string | null;
+      userId: string | null;
+      isPlaceholder: boolean;
+    }>;
+  }>(`/families/${familyId}/persons`, { token });
+}
+
+export async function fetchPerson(token: string, personId: string) {
+  return apiFetch<{
+    person: TreeNode & { familyId: string };
+    parents: Array<{ id: string; displayName: string; isPlaceholder: boolean }>;
+    children: Array<{ id: string; displayName: string; isPlaceholder: boolean }>;
+    spouses: Array<{ id: string; displayName: string; isPlaceholder: boolean }>;
+    siblings: Array<{ id: string; displayName: string; isPlaceholder: boolean }>;
+    summary: string;
+  }>(`/persons/${personId}`, { token });
 }
 
 export { ApiError, getStoredToken, setStoredToken };

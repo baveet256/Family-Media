@@ -7,6 +7,7 @@ import { HealthModule } from './health/health.module';
 import { JoinRequestsModule } from './join-requests/join-requests.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { TreeModule } from './tree/tree.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -19,6 +20,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     FamiliesModule,
     JoinRequestsModule,
+    TreeModule,
   ],
   controllers: [AppController],
 })

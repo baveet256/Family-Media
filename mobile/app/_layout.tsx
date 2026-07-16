@@ -45,7 +45,15 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const { loading, token, needsProfile, needsFamily, families } = useAuth();
+  const {
+    loading,
+    token,
+    needsProfile,
+    needsFamily,
+    needsOnboarding,
+    onboardingJoinRequestId,
+    families,
+  } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -55,6 +63,7 @@ function RootLayoutNav() {
     const group = segments[0];
     const screen = segments[1];
     const inAuth = group === '(auth)';
+    const inOnboarding = group === 'onboarding';
     const hasActiveFamily = families.some(
       (f) => f.status === 'active' || f.role === 'admin',
     );
@@ -79,8 +88,31 @@ function RootLayoutNav() {
       screen !== 'join-code'
     ) {
       router.replace('/(auth)/create-family');
+      return;
     }
-  }, [loading, token, needsProfile, needsFamily, families, segments, router]);
+
+    if (
+      !needsProfile &&
+      needsOnboarding &&
+      onboardingJoinRequestId &&
+      !inOnboarding
+    ) {
+      router.replace({
+        pathname: '/onboarding',
+        params: { joinRequestId: onboardingJoinRequestId },
+      });
+    }
+  }, [
+    loading,
+    token,
+    needsProfile,
+    needsFamily,
+    needsOnboarding,
+    onboardingJoinRequestId,
+    families,
+    segments,
+    router,
+  ]);
 
   if (loading) {
     return (
@@ -101,6 +133,10 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="onboarding/index"
+          options={{ title: 'Place yourself', headerBackVisible: false }}
+        />
         <Stack.Screen
           name="family/invite"
           options={{ title: 'Invite', presentation: 'modal' }}

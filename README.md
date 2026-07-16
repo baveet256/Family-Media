@@ -97,8 +97,16 @@ From the repo root:
 - [x] Admin invite by phone stub (`POST /families/:id/invites`)
 - [x] Join via code → pending `join_requests` visible to admin (`POST /join-requests`, `GET /families/:id/join-requests`)
 
+## Phase 2 exit criteria
+
+- [x] Founding admin becomes root `person` on family create
+- [x] Placement onboarding (`POST /join-requests/:id/onboarding`) — parent required; spouse/siblings optional; placeholders supported
+- [x] Admin approve/reject (`POST /join-requests/:id/approve|reject`) commits tree edges
+- [x] `GET /families/:id/tree` + `GET /persons/:id` lineage summary
+- [x] Mobile Tree tab + join-request approve UI
+
 ## Roadmap
 
 See [`family_app_schema_design_a780f16f.plan.md`](family_app_schema_design_a780f16f.plan.md) for the full phased roadmap.
 
-**Next:** Phase 2 — onboarding questions, tree, approve/reject join requests.
+**Next:** Phase 3 — feed (posts, media, reactions, comments).

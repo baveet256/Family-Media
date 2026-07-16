@@ -24,6 +24,18 @@ enum JoinRequestStatus {
   rejected
 }
 
+enum RelationshipType {
+  parent_of
+  spouse_of
+  sibling_of
+}
+
+enum RelationshipSource {
+  onboarding
+  admin
+  inferred
+}
+
 model User {
   id          String   @id @default(uuid()) @db.Uuid
   phone       String   @unique
@@ -34,6 +46,7 @@ model User {
 
   memberships  FamilyMembership[]
   joinRequests JoinRequest[]
+  persons      Person[]
 
   @@map("users")
 }
@@ -46,8 +59,10 @@ model Family {
   settings   Json     @default("{}")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  memberships  FamilyMembership[]
-  joinRequests JoinRequest[]
+  memberships   FamilyMembership[]
+  joinRequests  JoinRequest[]
+  persons       Person[]
+  relationships Relationship[]
 
   @@map("families")
 }
@@ -76,10 +91,66 @@ model JoinRequest {
   inviteCode String?           @map("invite_code")
   createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  onboardingAnswers OnboardingAnswer[]
 
   @@index([familyId, status])
   @@index([userId])
   @@map("join_requests")
+}
+
+model Person {
+  id            String    @id @default(uuid()) @db.Uuid
+  familyId      String    @map("family_id") @db.Uuid
+  userId        String?   @map("user_id") @db.Uuid
+  displayName   String    @map("display_name")
+  phone         String?
+  birthDate     DateTime? @map("birth_date") @db.Date
+  deathDate     DateTime? @map("death_date") @db.Date
+  gender        String?
+  avatarUrl     String?   @map("avatar_url")
+  isPlaceholder Boolean   @default(false) @map("is_placeholder")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  family           Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  relationshipsFrom Relationship[] @relation("RelationshipFrom")
+  relationshipsTo   Relationship[] @relation("RelationshipTo")
+
+  @@index([familyId])
+  @@index([userId])
+  @@map("persons")
+}
+
+model Relationship {
+  id           String             @id @default(uuid()) @db.Uuid
+  familyId     String             @map("family_id") @db.Uuid
+  fromPersonId String             @map("from_person_id") @db.Uuid
+  toPersonId   String             @map("to_person_id") @db.Uuid
+  type         RelationshipType
+  source       RelationshipSource @default(onboarding)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  family     Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  fromPerson Person @relation("RelationshipFrom", fields: [fromPersonId], references: [id], onDelete: Cascade)
+  toPerson   Person @relation("RelationshipTo", fields: [toPersonId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, fromPersonId, toPersonId, type])
+  @@index([familyId, type])
+  @@map("relationships")
+}
+
+model OnboardingAnswer {
+  id            String   @id @default(uuid()) @db.Uuid
+  joinRequestId String   @map("join_request_id") @db.Uuid
+  questionKey   String   @map("question_key")
+  answerJson    Json     @map("answer_json")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  joinRequest JoinRequest @relation(fields: [joinRequestId], references: [id], onDelete: Cascade)
+
+  @@unique([joinRequestId, questionKey])
+  @@index([joinRequestId])
+  @@map("onboarding_answers")
 }

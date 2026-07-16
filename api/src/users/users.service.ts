@@ -21,50 +21,84 @@ export class UsersService {
     });
 
     const joinRequests = await this.prisma.joinRequest.findMany({
-      where: { userId, status: 'pending' },
-      include: { family: true },
+      where: { userId, status: { in: ['pending', 'approved'] } },
+      include: {
+        family: true,
+        onboardingAnswers: { select: { questionKey: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
-    return {
-      user: this.auth.serializeUser(user),
-      families: memberships.map((m) => {
-        const settings =
-          m.family.settings &&
-          typeof m.family.settings === 'object' &&
-          !Array.isArray(m.family.settings)
-            ? (m.family.settings as {
-                require_approval?: boolean;
-                who_can_invite?: string;
-              })
-            : {};
-        return {
-          id: m.family.id,
-          name: m.family.name,
-          avatarUrl: m.family.avatarUrl,
-          inviteCode: m.family.inviteCode,
-          role: m.role,
-          status: m.status,
-          settings: {
-            requireApproval: settings.require_approval ?? true,
-            whoCanInvite: settings.who_can_invite ?? 'admin',
-          },
-        };
-      }),
-      pendingJoinRequests: joinRequests.map((jr) => ({
+    const persons = await this.prisma.person.findMany({
+      where: { userId, isPlaceholder: false },
+      select: { id: true, familyId: true },
+    });
+    const personByFamily = new Map(persons.map((p) => [p.familyId, p.id]));
+
+    const families = memberships.map((m) => {
+      const settings =
+        m.family.settings &&
+        typeof m.family.settings === 'object' &&
+        !Array.isArray(m.family.settings)
+          ? (m.family.settings as {
+              require_approval?: boolean;
+              who_can_invite?: string;
+            })
+          : {};
+      return {
+        id: m.family.id,
+        name: m.family.name,
+        avatarUrl: m.family.avatarUrl,
+        inviteCode: m.family.inviteCode,
+        role: m.role,
+        status: m.status,
+        personId: personByFamily.get(m.family.id) ?? null,
+        settings: {
+          requireApproval: settings.require_approval ?? true,
+          whoCanInvite: settings.who_can_invite ?? 'admin',
+        },
+      };
+    });
+
+    const pendingJoinRequests = joinRequests
+      .filter((jr) => jr.status === 'pending')
+      .map((jr) => ({
         id: jr.id,
         status: jr.status,
+        hasOnboarding: jr.onboardingAnswers.some((a) => a.questionKey === 'parent'),
         family: {
           id: jr.family.id,
           name: jr.family.name,
           avatarUrl: jr.family.avatarUrl,
         },
         createdAt: jr.createdAt,
-      })),
+      }));
+
+    // Needs onboarding if they have a pending join request without parent answers
+    const needsOnboardingRequest = pendingJoinRequests.find((jr) => !jr.hasOnboarding);
+
+    const activeWithoutPerson = families.find(
+      (f) => f.status === 'active' && !f.personId,
+    );
+
+    return {
+      user: this.auth.serializeUser(user),
+      families,
+      pendingJoinRequests,
       needsProfile: !user.displayName,
       needsFamily:
         memberships.filter((m) => m.status === 'active').length === 0 &&
-        joinRequests.length === 0,
+        pendingJoinRequests.length === 0,
+      needsOnboarding: !!needsOnboardingRequest || !!activeWithoutPerson,
+      onboardingJoinRequestId:
+        needsOnboardingRequest?.id ??
+        joinRequests.find(
+          (jr) =>
+            jr.status === 'approved' &&
+            !personByFamily.has(jr.familyId) &&
+            !jr.onboardingAnswers.some((a) => a.questionKey === 'parent'),
+        )?.id ??
+        null,
     };
   }
 

@@ -109,6 +109,17 @@ export class FamiliesService {
         },
       });
 
+      const founder = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+      await tx.person.create({
+        data: {
+          familyId: created.id,
+          userId,
+          displayName: founder.displayName || founder.phone,
+          avatarUrl: founder.avatarUrl,
+          isPlaceholder: false,
+        },
+      });
+
       return created;
     });
 
@@ -191,7 +202,10 @@ export class FamiliesService {
     await this.requireAdmin(familyId, userId);
     const requests = await this.prisma.joinRequest.findMany({
       where: { familyId },
-      include: { user: true },
+      include: {
+        user: true,
+        onboardingAnswers: { select: { questionKey: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -201,6 +215,8 @@ export class FamiliesService {
         status: jr.status,
         inviteCode: jr.inviteCode,
         createdAt: jr.createdAt,
+        hasOnboarding: jr.onboardingAnswers.some((a) => a.questionKey === 'parent'),
+        onboardingKeys: jr.onboardingAnswers.map((a) => a.questionKey),
         user: {
           id: jr.user.id,
           phone: jr.user.phone,

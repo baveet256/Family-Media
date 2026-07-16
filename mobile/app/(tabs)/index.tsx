@@ -26,8 +26,8 @@ export default function HomeScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Waiting for approval</Text>
           <Text style={styles.detail}>
-            Your join request is pending. Admins can see it now; approve/reject
-            arrives in Phase 2.
+            Your join request is pending. Finish onboarding, then an admin can
+            approve you onto the tree.
           </Text>
         </View>
       ) : null}

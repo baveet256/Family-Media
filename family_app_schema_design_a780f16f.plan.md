@@ -10,7 +10,7 @@ todos:
     status: completed
   - id: phase-2
     content: "Phase 2 — Onboarding questions & emergent family tree"
-    status: pending
+    status: completed
   - id: phase-3
     content: "Phase 3 — Feed (posts, media, reactions, comments)"
     status: pending
@@ -890,7 +890,7 @@ flowchart LR
 
 **Suggested next step**
 
-Start **Phase 2**:
-1. Placement questionnaire + `persons` / `relationships`
-2. Admin approve/reject join requests
-3. Interactive tree viewer
+Start **Phase 3**:
+1. Posts + media upload
+2. Family feed timeline
+3. Reactions and comments

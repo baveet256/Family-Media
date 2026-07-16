@@ -26,6 +26,8 @@ type AuthState = {
   pendingJoinRequests: MeResponse['pendingJoinRequests'];
   needsProfile: boolean;
   needsFamily: boolean;
+  needsOnboarding: boolean;
+  onboardingJoinRequestId: string | null;
   refresh: () => Promise<void>;
   signInWithOtp: (
     phone: string,
@@ -47,6 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   >([]);
   const [needsProfile, setNeedsProfile] = useState(false);
   const [needsFamily, setNeedsFamily] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [onboardingJoinRequestId, setOnboardingJoinRequestId] = useState<
+    string | null
+  >(null);
 
   const applyMe = useCallback((accessToken: string, me: MeResponse) => {
     setToken(accessToken);
@@ -55,17 +61,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPendingJoinRequests(me.pendingJoinRequests);
     setNeedsProfile(me.needsProfile);
     setNeedsFamily(me.needsFamily);
+    setNeedsOnboarding(!!me.needsOnboarding);
+    setOnboardingJoinRequestId(me.onboardingJoinRequestId ?? null);
+  }, []);
+
+  const clearSession = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    setFamilies([]);
+    setPendingJoinRequests([]);
+    setNeedsProfile(false);
+    setNeedsFamily(false);
+    setNeedsOnboarding(false);
+    setOnboardingJoinRequestId(null);
   }, []);
 
   const refresh = useCallback(async () => {
     const stored = await getStoredToken();
     if (!stored) {
-      setToken(null);
-      setUser(null);
-      setFamilies([]);
-      setPendingJoinRequests([]);
-      setNeedsProfile(false);
-      setNeedsFamily(false);
+      clearSession();
       setLoading(false);
       return;
     }
@@ -75,14 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       applyMe(stored, me);
     } catch {
       await setStoredToken(null);
-      setToken(null);
-      setUser(null);
-      setFamilies([]);
-      setPendingJoinRequests([]);
+      clearSession();
     } finally {
       setLoading(false);
     }
-  }, [applyMe]);
+  }, [applyMe, clearSession]);
 
   useEffect(() => {
     void refresh();
@@ -100,13 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await setStoredToken(null);
-    setToken(null);
-    setUser(null);
-    setFamilies([]);
-    setPendingJoinRequests([]);
-    setNeedsProfile(false);
-    setNeedsFamily(false);
-  }, []);
+    clearSession();
+  }, [clearSession]);
 
   const value = useMemo(
     () => ({
@@ -117,6 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       pendingJoinRequests,
       needsProfile,
       needsFamily,
+      needsOnboarding,
+      onboardingJoinRequestId,
       refresh,
       signInWithOtp,
       signOut,
@@ -129,6 +137,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       pendingJoinRequests,
       needsProfile,
       needsFamily,
+      needsOnboarding,
+      onboardingJoinRequestId,
       refresh,
       signInWithOtp,
       signOut,

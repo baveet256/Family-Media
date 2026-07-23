@@ -133,11 +133,13 @@ async function apiFetch<T>(
   options: RequestInit & { token?: string | null } = {},
 ): Promise<T> {
   const { token, headers, ...rest } = options;
+  const isFormData =
+    typeof FormData !== 'undefined' && rest.body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...rest,
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
@@ -358,6 +360,224 @@ export async function fetchPerson(token: string, personId: string) {
     siblings: Array<{ id: string; displayName: string; isPlaceholder: boolean }>;
     summary: string;
   }>(`/persons/${personId}`, { token });
+}
+
+export type FeedPost = {
+  id: string;
+  familyId: string;
+  caption: string | null;
+  visibility: string;
+  createdAt: string;
+  author: {
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  media: Array<{
+    id: string;
+    mediaType: 'image' | 'video';
+    url: string;
+    thumbnailUrl: string | null;
+    sortOrder: number;
+  }>;
+  reactions: {
+    counts: Record<string, number>;
+    total: number;
+    mine: string | null;
+  };
+  comments: Array<{
+    id: string;
+    body: string;
+    createdAt: string;
+    author: {
+      id: string;
+      displayName: string;
+      avatarUrl: string | null;
+    };
+  }>;
+  commentCount: number;
+};
+
+export async function fetchFeed(
+  token: string,
+  familyId: string,
+  opts: { cursor?: string; limit?: number } = {},
+) {
+  const params = new URLSearchParams();
+  if (opts.cursor) params.set('cursor', opts.cursor);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  return apiFetch<{ posts: FeedPost[]; nextCursor: string | null }>(
+    `/families/${familyId}/feed${qs ? `?${qs}` : ''}`,
+    { token },
+  );
+}
+
+export async function createPost(
+  token: string,
+  body: {
+    familyId: string;
+    caption?: string;
+    media?: Array<{
+      mediaType: 'image' | 'video';
+      url: string;
+      thumbnailUrl?: string;
+      sortOrder?: number;
+    }>;
+  },
+) {
+  return apiFetch<{ post: FeedPost }>('/posts', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchPost(token: string, postId: string) {
+  return apiFetch<{ post: FeedPost }>(`/posts/${postId}`, { token });
+}
+
+export async function reactToPost(
+  token: string,
+  postId: string,
+  emoji: string,
+) {
+  return apiFetch<{ post: FeedPost }>(`/posts/${postId}/reactions`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ emoji }),
+  });
+}
+
+export async function commentOnPost(
+  token: string,
+  postId: string,
+  body: string,
+) {
+  return apiFetch<{ post: FeedPost }>(`/posts/${postId}/comments`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ body }),
+  });
+}
+
+export async function fetchMyPosts(token: string, familyId: string) {
+  return apiFetch<{ posts: FeedPost[] }>(`/families/${familyId}/my-posts`, {
+    token,
+  });
+}
+
+export async function presignMedia(
+  token: string,
+  mediaType: 'image' | 'video',
+  filename?: string,
+) {
+  return apiFetch<{
+    key: string;
+    uploadUrl: string;
+    publicUrl: string;
+    fields: { key: string };
+    method: string;
+    mediaType: string;
+  }>('/media/presign', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ mediaType, filename }),
+  });
+}
+
+export async function uploadMediaFile(
+  token: string,
+  uploadUrl: string,
+  key: string,
+  file: { uri: string; name: string; type: string },
+) {
+  const form = new FormData();
+  form.append('key', key);
+  // React Native FormData file shape
+  form.append('file', {
+    uri: file.uri,
+    name: file.name,
+    type: file.type,
+  } as unknown as Blob);
+
+  // uploadUrl may be absolute; if so use it directly
+  const path = uploadUrl.startsWith('http')
+    ? uploadUrl.replace(API_BASE_URL, '')
+    : uploadUrl;
+  return apiFetch<{ ok: boolean; publicUrl: string; key: string }>(path, {
+    method: 'POST',
+    token,
+    body: form,
+  });
+}
+
+export type StoryItem = {
+  id: string;
+  mediaType: 'image' | 'video' | string;
+  url: string;
+  expiresAt: string;
+  createdAt: string;
+  viewedByMe: boolean;
+};
+
+export type StoryRing = {
+  author: {
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  hasUnseen: boolean;
+  stories: StoryItem[];
+};
+
+export async function fetchStoryRings(token: string, familyId: string) {
+  return apiFetch<{ rings: StoryRing[] }>(`/families/${familyId}/stories`, {
+    token,
+  });
+}
+
+export async function createStory(
+  token: string,
+  body: {
+    familyId: string;
+    mediaType: 'image' | 'video';
+    url: string;
+    expiresInSeconds?: number;
+  },
+) {
+  return apiFetch<{
+    story: StoryItem & {
+      familyId: string;
+      author: {
+        id: string;
+        displayName: string;
+        avatarUrl: string | null;
+      };
+    };
+  }>('/stories', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function markStoryViewed(token: string, storyId: string) {
+  return apiFetch<{ ok: boolean }>(`/stories/${storyId}/view`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export async function fetchStoryViewers(token: string, storyId: string) {
+  return apiFetch<{
+    viewers: Array<{
+      id: string;
+      displayName: string;
+      avatarUrl: string | null;
+      viewedAt: string;
+    }>;
+  }>(`/stories/${storyId}/viewers`, { token });
 }
 
 export { ApiError, getStoredToken, setStoredToken };

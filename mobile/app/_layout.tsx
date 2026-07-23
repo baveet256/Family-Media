@@ -133,10 +133,7 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="onboarding/index"
-          options={{ title: 'Place yourself', headerBackVisible: false }}
-        />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen
           name="family/invite"
           options={{ title: 'Invite', presentation: 'modal' }}
@@ -144,6 +141,23 @@ function RootLayoutNav() {
         <Stack.Screen
           name="family/join-requests"
           options={{ title: 'Join requests', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="feed/create"
+          options={{ title: 'New post', presentation: 'modal' }}
+        />
+        <Stack.Screen name="feed/[id]" options={{ title: 'Post' }} />
+        <Stack.Screen
+          name="stories/create"
+          options={{ title: 'New story', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="stories/viewer"
+          options={{ headerShown: false, presentation: 'fullScreenModal' }}
+        />
+        <Stack.Screen
+          name="stories/viewers"
+          options={{ title: 'Viewers', presentation: 'modal' }}
         />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>

@@ -125,3 +125,6 @@ GoogleService-Info.plist
 *.local
 .vercel
 .netlify
+
+# Local media uploads (dev)
+api/uploads/

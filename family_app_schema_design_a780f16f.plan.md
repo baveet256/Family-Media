@@ -13,10 +13,10 @@ todos:
     status: completed
   - id: phase-3
     content: "Phase 3 — Feed (posts, media, reactions, comments)"
-    status: pending
+    status: completed
   - id: phase-4
     content: "Phase 4 — Stories (24h status rings)"
-    status: pending
+    status: completed
   - id: phase-5
     content: "Phase 5 — Messaging (DMs & group chat)"
     status: pending
@@ -890,7 +890,7 @@ flowchart LR
 
 **Suggested next step**
 
-Start **Phase 3**:
-1. Posts + media upload
-2. Family feed timeline
-3. Reactions and comments
+Start **Phase 5**:
+1. Chats + participants + messages schema
+2. 1:1 and group messaging APIs
+3. Chat tab inbox + conversation UI (poll OK; WebSocket later)

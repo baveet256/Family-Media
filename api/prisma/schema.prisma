@@ -47,6 +47,11 @@ model User {
   memberships  FamilyMembership[]
   joinRequests JoinRequest[]
   persons      Person[]
+  posts        Post[]
+  reactions    PostReaction[]
+  comments     PostComment[]
+  stories      Story[]
+  storyViews   StoryView[]
 
   @@map("users")
 }
@@ -63,6 +68,8 @@ model Family {
   joinRequests  JoinRequest[]
   persons       Person[]
   relationships Relationship[]
+  posts         Post[]
+  stories       Story[]
 
   @@map("families")
 }
@@ -153,4 +160,103 @@ model OnboardingAnswer {
   @@unique([joinRequestId, questionKey])
   @@index([joinRequestId])
   @@map("onboarding_answers")
+}
+
+enum PostVisibility {
+  family
+  connection
+}
+
+enum MediaType {
+  image
+  video
+}
+
+model Post {
+  id           String         @id @default(uuid()) @db.Uuid
+  familyId     String         @map("family_id") @db.Uuid
+  authorUserId String         @map("author_user_id") @db.Uuid
+  caption      String?        @db.Text
+  visibility   PostVisibility @default(family)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  family    Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  author    User           @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  media     PostMedia[]
+  reactions PostReaction[]
+  comments  PostComment[]
+
+  @@index([familyId, createdAt(sort: Desc)])
+  @@index([authorUserId])
+  @@map("posts")
+}
+
+model PostMedia {
+  id           String    @id @default(uuid()) @db.Uuid
+  postId       String    @map("post_id") @db.Uuid
+  mediaType    MediaType @map("media_type")
+  url          String
+  thumbnailUrl String?   @map("thumbnail_url")
+  sortOrder    Int       @default(0) @map("sort_order")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_media")
+}
+
+model PostReaction {
+  postId String @map("post_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  emoji  String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@map("post_reactions")
+}
+
+model PostComment {
+  id           String   @id @default(uuid()) @db.Uuid
+  postId       String   @map("post_id") @db.Uuid
+  authorUserId String   @map("author_user_id") @db.Uuid
+  body         String   @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@map("post_comments")
+}
+
+model Story {
+  id           String    @id @default(uuid()) @db.Uuid
+  familyId     String    @map("family_id") @db.Uuid
+  authorUserId String    @map("author_user_id") @db.Uuid
+  mediaType    MediaType @map("media_type")
+  url          String
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  family  Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  author  User        @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  views   StoryView[]
+
+  @@index([familyId, expiresAt])
+  @@index([authorUserId, createdAt(sort: Desc)])
+  @@map("stories")
+}
+
+model StoryView {
+  storyId      String   @map("story_id") @db.Uuid
+  viewerUserId String   @map("viewer_user_id") @db.Uuid
+  viewedAt     DateTime @default(now()) @map("viewed_at") @db.Timestamptz(6)
+
+  story  Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer User  @relation(fields: [viewerUserId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, viewerUserId])
+  @@map("story_views")
 }

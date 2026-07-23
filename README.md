@@ -105,8 +105,23 @@ From the repo root:
 - [x] `GET /families/:id/tree` + `GET /persons/:id` lineage summary
 - [x] Mobile Tree tab + join-request approve UI
 
+## Phase 3 exit criteria
+
+- [x] Create post with caption + media (`POST /posts`)
+- [x] Family feed reverse-chronological (`GET /families/:id/feed`) with cursor pagination
+- [x] Reactions + comments (`POST /posts/:id/reactions`, `POST /posts/:id/comments`)
+- [x] Local media upload pipeline (`POST /media/presign`, `POST /media/upload`) — swap for S3/R2 later
+- [x] Mobile Home feed, compose, and post detail
+
+## Phase 4 exit criteria
+
+- [x] Create story (`POST /stories`) — image/video, expires in 24h
+- [x] Family story rings (`GET /families/:id/stories`) with unseen highlight
+- [x] Mark viewed + author viewers list (`POST /stories/:id/view`, `GET /stories/:id/viewers`)
+- [x] Mobile story ring, composer, fullscreen viewer
+
 ## Roadmap
 
 See [`family_app_schema_design_a780f16f.plan.md`](family_app_schema_design_a780f16f.plan.md) for the full phased roadmap.
 
-**Next:** Phase 3 — feed (posts, media, reactions, comments).
+**Next:** Phase 5 — messaging (DMs & group chat).

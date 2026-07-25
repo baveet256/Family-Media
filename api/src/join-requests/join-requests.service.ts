@@ -7,11 +7,14 @@ import {
 } from '@nestjs/common';
 import { Prisma, RelationshipType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AuditService } from '../audit/audit.service';
 import { CreateJoinRequestDto } from '../families/dto/family.dto';
 import {
   PersonRefDto,
   SubmitOnboardingDto,
 } from './dto/onboarding.dto';
+import { buildDisplayName, splitDisplayName } from '../common/names';
 
 type Tx = Prisma.TransactionClient;
 
@@ -21,7 +24,11 @@ function canonicalPair(a: string, b: string): [string, string] {
 
 @Injectable()
 export class JoinRequestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
+  ) {}
 
   private async requireAdmin(familyId: string, userId: string) {
     const membership = await this.prisma.familyMembership.findUnique({
@@ -87,6 +94,24 @@ export class JoinRequestsService {
         },
       });
     }
+
+    const admins = await this.prisma.familyMembership.findMany({
+      where: { familyId: family.id, role: 'admin', status: 'active' },
+      select: { userId: true },
+    });
+    const requester = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { displayName: true },
+    });
+    void this.notifications.notifyMany(
+      admins.map((a) => a.userId),
+      {
+        type: 'join_request',
+        title: 'New join request',
+        body: `${requester?.displayName || 'Someone'} wants to join ${family.name}`,
+        data: { familyId: family.id, joinRequestId: joinRequest.id },
+      },
+    );
 
     return {
       joinRequest: this.serializeRequest(joinRequest, family),
@@ -242,8 +267,15 @@ export class JoinRequestsService {
         data: {
           familyId: joinRequest.familyId,
           userId: joinRequest.userId,
+          firstName: joinRequest.user.firstName || '',
+          lastName: joinRequest.user.lastName || '',
           displayName:
-            joinRequest.user.displayName || joinRequest.user.phone,
+            joinRequest.user.displayName ||
+            buildDisplayName(
+              joinRequest.user.firstName,
+              joinRequest.user.lastName,
+            ) ||
+            joinRequest.user.phone,
           avatarUrl: joinRequest.user.avatarUrl,
           isPlaceholder: false,
         },
@@ -323,6 +355,22 @@ export class JoinRequestsService {
       });
 
       return newPerson;
+    });
+
+    await this.audit.log({
+      actorUserId: adminUserId,
+      familyId: joinRequest.familyId,
+      entityType: 'join_request',
+      entityId: joinRequestId,
+      action: 'join_request.approve',
+      meta: { personId: result.id, userId: joinRequest.userId },
+    });
+    void this.notifications.notify({
+      userId: joinRequest.userId,
+      type: 'join_request',
+      title: 'Welcome to the family',
+      body: `Your request to join ${joinRequest.family.name} was approved`,
+      data: { familyId: joinRequest.familyId },
     });
 
     return {
@@ -421,9 +469,12 @@ export class JoinRequestsService {
       return person.id;
     }
 
+    const split = splitDisplayName(ref.name!.trim());
     const created = await tx.person.create({
       data: {
         familyId,
+        firstName: split.firstName,
+        lastName: split.lastName,
         displayName: ref.name!.trim(),
         phone: ref.phone?.trim() || null,
         isPlaceholder: true,

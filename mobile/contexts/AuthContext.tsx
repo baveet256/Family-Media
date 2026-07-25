@@ -11,24 +11,35 @@ import {
 import {
   fetchMe,
   getStoredToken,
+  setActiveContext,
   setStoredToken,
+  type ActiveContext,
+  type ConnectionSummary,
   type FamilySummary,
   type MeResponse,
   type User,
   verifyOtp,
 } from '@/lib/api';
+import { registerForPushNotifications } from '@/lib/push';
 
 type AuthState = {
   loading: boolean;
   token: string | null;
   user: User | null;
   families: FamilySummary[];
+  connections: ConnectionSummary[];
+  context: ActiveContext | null;
+  activeFamily: FamilySummary | null;
   pendingJoinRequests: MeResponse['pendingJoinRequests'];
   needsProfile: boolean;
   needsFamily: boolean;
   needsOnboarding: boolean;
   onboardingJoinRequestId: string | null;
   refresh: () => Promise<void>;
+  switchContext: (opts: {
+    familyId: string;
+    connectionId?: string | null;
+  }) => Promise<void>;
   signInWithOtp: (
     phone: string,
     otp: string,
@@ -44,6 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [families, setFamilies] = useState<FamilySummary[]>([]);
+  const [connections, setConnections] = useState<ConnectionSummary[]>([]);
+  const [context, setContext] = useState<ActiveContext | null>(null);
   const [pendingJoinRequests, setPendingJoinRequests] = useState<
     MeResponse['pendingJoinRequests']
   >([]);
@@ -58,17 +71,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(accessToken);
     setUser(me.user);
     setFamilies(me.families);
+    setConnections(me.connections ?? []);
+    setContext(me.context ?? null);
     setPendingJoinRequests(me.pendingJoinRequests);
     setNeedsProfile(me.needsProfile);
     setNeedsFamily(me.needsFamily);
     setNeedsOnboarding(!!me.needsOnboarding);
     setOnboardingJoinRequestId(me.onboardingJoinRequestId ?? null);
+    void registerForPushNotifications(accessToken);
   }, []);
 
   const clearSession = useCallback(() => {
     setToken(null);
     setUser(null);
     setFamilies([]);
+    setConnections([]);
+    setContext(null);
     setPendingJoinRequests([]);
     setNeedsProfile(false);
     setNeedsFamily(false);
@@ -114,18 +132,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearSession();
   }, [clearSession]);
 
+  const switchContext = useCallback(
+    async (opts: { familyId: string; connectionId?: string | null }) => {
+      if (!token) return;
+      const res = await setActiveContext(token, opts);
+      setContext(res.context);
+      await refresh();
+    },
+    [token, refresh],
+  );
+
+  const activeFamily = useMemo(() => {
+    if (context?.familyId) {
+      return (
+        families.find((f) => f.id === context.familyId) ??
+        ({
+          id: context.family.id,
+          name: context.family.name,
+          avatarUrl: context.family.avatarUrl,
+          inviteCode: '',
+          role: 'member' as const,
+          status: 'active' as const,
+        } satisfies FamilySummary)
+      );
+    }
+    return (
+      families.find((f) => f.status === 'active') ??
+      families.find((f) => f.role === 'admin') ??
+      families[0] ??
+      null
+    );
+  }, [context, families]);
+
   const value = useMemo(
     () => ({
       loading,
       token,
       user,
       families,
+      connections,
+      context,
+      activeFamily,
       pendingJoinRequests,
       needsProfile,
       needsFamily,
       needsOnboarding,
       onboardingJoinRequestId,
       refresh,
+      switchContext,
       signInWithOtp,
       signOut,
     }),
@@ -134,12 +188,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       user,
       families,
+      connections,
+      context,
+      activeFamily,
       pendingJoinRequests,
       needsProfile,
       needsFamily,
       needsOnboarding,
       onboardingJoinRequestId,
       refresh,
+      switchContext,
       signInWithOtp,
       signOut,
     ],

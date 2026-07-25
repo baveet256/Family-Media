@@ -37,12 +37,17 @@ enum RelationshipSource {
 }
 
 model User {
-  id          String   @id @default(uuid()) @db.Uuid
-  phone       String   @unique
-  displayName String   @default("") @map("display_name")
-  avatarUrl   String?  @map("avatar_url")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id          String    @id @default(uuid()) @db.Uuid
+  phone       String    @unique
+  firstName   String    @default("") @map("first_name")
+  lastName    String    @default("") @map("last_name")
+  displayName String    @default("") @map("display_name")
+  avatarUrl   String?   @map("avatar_url")
+  /** Short "about" line, shown when you hold a face in the tree. */
+  status      String    @default("") @db.VarChar(140)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships  FamilyMembership[]
   joinRequests JoinRequest[]
@@ -52,6 +57,19 @@ model User {
   comments     PostComment[]
   stories      Story[]
   storyViews   StoryView[]
+  chatParticipations ChatParticipant[]
+  chatsCreated Chat[]      @relation("ChatCreator")
+  messages     Message[]
+  connectionInvitesSent ConnectionInvite[] @relation("ConnectionInviteInitiator")
+  activeContext UserActiveContext?
+  deviceTokens DeviceToken[]
+  notifications Notification[]
+  auditEvents AuditEvent[] @relation("AuditActor")
+  relationshipRequests RelationshipChangeRequest[] @relation("RelationshipRequestActor")
+  relationshipReviews RelationshipChangeRequest[] @relation("RelationshipRequestReviewer")
+  gameRoundsCreated GameRound[] @relation("GameRoundCreator")
+  gameVotes   GameVote[]  @relation("GameVoter")
+  occasionsCreated Occasion[] @relation("OccasionCreator")
 
   @@map("users")
 }
@@ -70,6 +88,16 @@ model Family {
   relationships Relationship[]
   posts         Post[]
   stories       Story[]
+  chats         Chat[]
+  connectionMemberships ConnectionMembership[]
+  connectionInvitesFrom ConnectionInvite[] @relation("ConnectionInviteFrom")
+  connectionInvitesTo   ConnectionInvite[] @relation("ConnectionInviteTo")
+  bridgeLinksAsA BridgeLink[] @relation("BridgeFamilyA")
+  bridgeLinksAsB BridgeLink[] @relation("BridgeFamilyB")
+  activeContexts UserActiveContext[]
+  relationshipChangeRequests RelationshipChangeRequest[]
+  gameRounds GameRound[]
+  occasions  Occasion[]
 
   @@map("families")
 }
@@ -111,6 +139,8 @@ model Person {
   id            String    @id @default(uuid()) @db.Uuid
   familyId      String    @map("family_id") @db.Uuid
   userId        String?   @map("user_id") @db.Uuid
+  firstName     String    @default("") @map("first_name")
+  lastName      String    @default("") @map("last_name")
   displayName   String    @map("display_name")
   phone         String?
   birthDate     DateTime? @map("birth_date") @db.Date
@@ -124,6 +154,14 @@ model Person {
   user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   relationshipsFrom Relationship[] @relation("RelationshipFrom")
   relationshipsTo   Relationship[] @relation("RelationshipTo")
+  bridgeLinksAsA BridgeLink[] @relation("BridgePersonA")
+  bridgeLinksAsB BridgeLink[] @relation("BridgePersonB")
+  changeRequestsFrom RelationshipChangeRequest[] @relation("ChangeRequestFrom")
+  changeRequestsTo   RelationshipChangeRequest[] @relation("ChangeRequestTo")
+  gameEntries GameEntry[]
+  occasionsAsA Occasion[] @relation("OccasionPersonA")
+  occasionsAsB Occasion[] @relation("OccasionPersonB")
+  connectionInvitesNominated ConnectionInvite[] @relation("ConnectionInviteFromPerson")
 
   @@index([familyId])
   @@index([userId])
@@ -178,15 +216,18 @@ model Post {
   authorUserId String         @map("author_user_id") @db.Uuid
   caption      String?        @db.Text
   visibility   PostVisibility @default(family)
+  connectionId String?        @map("connection_id") @db.Uuid
   createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  family    Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  author    User           @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
-  media     PostMedia[]
-  reactions PostReaction[]
-  comments  PostComment[]
+  family     Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  author     User        @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  connection Connection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  media      PostMedia[]
+  reactions  PostReaction[]
+  comments   PostComment[]
 
   @@index([familyId, createdAt(sort: Desc)])
+  @@index([connectionId, createdAt(sort: Desc)])
   @@index([authorUserId])
   @@map("posts")
 }
@@ -259,4 +300,378 @@ model StoryView {
 
   @@id([storyId, viewerUserId])
   @@map("story_views")
+}
+
+enum ChatType {
+  direct
+  group
+}
+
+enum ChatScope {
+  /** The auto-created "Family" room. */
+  family
+  /** Anything a member made themselves — DMs and their own circles. */
+  custom
+  /** Auto-provisioned room for a subset of families in a connection. */
+  congregation
+}
+
+enum ChatRole {
+  admin
+  member
+}
+
+model Chat {
+  id              String    @id @default(uuid()) @db.Uuid
+  familyId        String    @map("family_id") @db.Uuid
+  type            ChatType
+  scope           ChatScope @default(custom)
+  name            String?
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  connectionId    String?   @map("connection_id") @db.Uuid
+  /** Sorted, comma-joined family ids — identifies which combination of
+   *  families a congregation room covers, and keeps provisioning idempotent. */
+  subsetKey       String?   @map("subset_key")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  family       Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy    User?             @relation("ChatCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  connection   Connection?       @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  participants ChatParticipant[]
+  messages     Message[]
+
+  @@unique([connectionId, subsetKey])
+  @@index([familyId, createdAt(sort: Desc)])
+  @@map("chats")
+}
+
+model ChatParticipant {
+  chatId     String    @map("chat_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  role       ChatRole  @default(member)
+  joinedAt   DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
+  lastReadAt DateTime? @map("last_read_at") @db.Timestamptz(6)
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, userId])
+  @@index([userId])
+  @@map("chat_participants")
+}
+
+model Message {
+  id           String   @id @default(uuid()) @db.Uuid
+  chatId       String   @map("chat_id") @db.Uuid
+  senderUserId String   @map("sender_user_id") @db.Uuid
+  body         String?  @db.Text
+  mediaUrl     String?  @map("media_url")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@map("messages")
+}
+
+enum FeedPolicy {
+  unified_feed
+  separate_feeds
+}
+
+enum ConnectionStatus {
+  pending
+  active
+  dissolved
+}
+
+enum ConnectionMemberStatus {
+  pending
+  active
+  left
+}
+
+enum ConnectionInviteStatus {
+  pending
+  accepted
+  declined
+}
+
+enum BridgeLinkType {
+  spouse
+  other
+}
+
+model Connection {
+  id         String           @id @default(uuid()) @db.Uuid
+  name       String?
+  feedPolicy FeedPolicy       @default(separate_feeds) @map("feed_policy")
+  status     ConnectionStatus @default(pending)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  memberships ConnectionMembership[]
+  bridgeLinks BridgeLink[]
+  invites     ConnectionInvite[]
+  posts       Post[]
+  contexts    UserActiveContext[]
+  chats       Chat[]
+
+  @@map("connections")
+}
+
+model ConnectionMembership {
+  id           String                 @id @default(uuid()) @db.Uuid
+  connectionId String                 @map("connection_id") @db.Uuid
+  familyId     String                 @map("family_id") @db.Uuid
+  status       ConnectionMemberStatus @default(pending)
+  joinedAt     DateTime               @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  family     Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, familyId])
+  @@index([familyId])
+  @@map("connection_memberships")
+}
+
+model BridgeLink {
+  id           String         @id @default(uuid()) @db.Uuid
+  connectionId String         @map("connection_id") @db.Uuid
+  familyAId    String         @map("family_a_id") @db.Uuid
+  personAId    String         @map("person_a_id") @db.Uuid
+  familyBId    String         @map("family_b_id") @db.Uuid
+  personBId    String         @map("person_b_id") @db.Uuid
+  linkType     BridgeLinkType @default(spouse) @map("link_type")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  familyA    Family     @relation("BridgeFamilyA", fields: [familyAId], references: [id], onDelete: Cascade)
+  familyB    Family     @relation("BridgeFamilyB", fields: [familyBId], references: [id], onDelete: Cascade)
+  personA    Person     @relation("BridgePersonA", fields: [personAId], references: [id], onDelete: Cascade)
+  personB    Person     @relation("BridgePersonB", fields: [personBId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@map("bridge_links")
+}
+
+model ConnectionInvite {
+  id                String                 @id @default(uuid()) @db.Uuid
+  connectionId      String?                @map("connection_id") @db.Uuid
+  fromFamilyId      String                 @map("from_family_id") @db.Uuid
+  toFamilyId        String                 @map("to_family_id") @db.Uuid
+  initiatedByUserId String                 @map("initiated_by_user_id") @db.Uuid
+  proposedName      String?                @map("proposed_name")
+  proposedFeedPolicy FeedPolicy            @default(separate_feeds) @map("proposed_feed_policy")
+  /** The inviting family's half of the marriage. Their admin picks it; the
+   *  accepting admin names the other half and the bridge link is created. */
+  fromPersonId      String?                @map("from_person_id") @db.Uuid
+  status            ConnectionInviteStatus @default(pending)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  connection  Connection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  fromFamily  Family      @relation("ConnectionInviteFrom", fields: [fromFamilyId], references: [id], onDelete: Cascade)
+  toFamily    Family      @relation("ConnectionInviteTo", fields: [toFamilyId], references: [id], onDelete: Cascade)
+  initiatedBy User        @relation("ConnectionInviteInitiator", fields: [initiatedByUserId], references: [id], onDelete: Cascade)
+  fromPerson  Person?     @relation("ConnectionInviteFromPerson", fields: [fromPersonId], references: [id], onDelete: SetNull)
+
+  @@index([toFamilyId, status])
+  @@index([fromFamilyId, status])
+  @@map("connection_invites")
+}
+
+model UserActiveContext {
+  userId       String   @id @map("user_id") @db.Uuid
+  familyId     String   @map("family_id") @db.Uuid
+  connectionId String?  @map("connection_id") @db.Uuid
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family     Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  connection Connection?  @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+  @@map("user_active_context")
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  platform  String   @default("unknown")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String
+  title     String
+  body      String
+  dataJson  Json      @default("{}") @map("data_json")
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorUserId String? @map("actor_user_id") @db.Uuid
+  familyId   String?  @map("family_id") @db.Uuid
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  action     String
+  metaJson   Json     @default("{}") @map("meta_json")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, createdAt(sort: Desc)])
+  @@index([entityType, entityId])
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@map("audit_events")
+}
+
+enum ChangeRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ChangeRequestAction {
+  create
+  delete
+}
+
+model RelationshipChangeRequest {
+  id              String              @id @default(uuid()) @db.Uuid
+  familyId        String              @map("family_id") @db.Uuid
+  requestedByUserId String            @map("requested_by_user_id") @db.Uuid
+  fromPersonId    String              @map("from_person_id") @db.Uuid
+  toPersonId      String              @map("to_person_id") @db.Uuid
+  type            RelationshipType
+  action          ChangeRequestAction
+  note            String?
+  status          ChangeRequestStatus @default(pending)
+  reviewedByUserId String?            @map("reviewed_by_user_id") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  reviewedAt      DateTime?           @map("reviewed_at") @db.Timestamptz(6)
+
+  family      Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  requestedBy User   @relation("RelationshipRequestActor", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  reviewedBy  User?  @relation("RelationshipRequestReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  fromPerson  Person @relation("ChangeRequestFrom", fields: [fromPersonId], references: [id], onDelete: Cascade)
+  toPerson    Person @relation("ChangeRequestTo", fields: [toPersonId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, status])
+  @@map("relationship_change_requests")
+}
+
+enum GameType {
+  family_awards
+  caption_battle
+}
+
+enum GameRoundStatus {
+  submitting
+  voting
+  closed
+}
+
+/// A single playable round. Both games share this shape: people submit or are
+/// nominated as entries, everyone casts one vote, results reveal on close.
+model GameRound {
+  id              String          @id @default(uuid()) @db.Uuid
+  familyId        String          @map("family_id") @db.Uuid
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+  type            GameType
+  prompt          String
+  photoUrl        String?         @map("photo_url")
+  status          GameRoundStatus @default(voting)
+  closesAt        DateTime        @map("closes_at") @db.Timestamptz(6)
+  closedAt        DateTime?       @map("closed_at") @db.Timestamptz(6)
+  winnerEntryId   String?         @map("winner_entry_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  family    Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy User        @relation("GameRoundCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  entries   GameEntry[]
+  votes     GameVote[]
+
+  @@index([familyId, createdAt(sort: Desc)])
+  @@index([familyId, status])
+  @@map("game_rounds")
+}
+
+/// Awards: the nominee. Caption battle: the caption and its author.
+/// Points at a Person so relatives who aren't on the app can still be
+/// nominated (and win).
+model GameEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  roundId   String   @map("round_id") @db.Uuid
+  personId  String   @map("person_id") @db.Uuid
+  text      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  round  GameRound  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  person Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  votes  GameVote[]
+
+  @@unique([roundId, personId])
+  @@index([roundId])
+  @@map("game_entries")
+}
+
+model GameVote {
+  roundId     String   @map("round_id") @db.Uuid
+  voterUserId String   @map("voter_user_id") @db.Uuid
+  entryId     String   @map("entry_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  round GameRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  voter User      @relation("GameVoter", fields: [voterUserId], references: [id], onDelete: Cascade)
+  entry GameEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@id([roundId, voterUserId])
+  @@index([entryId])
+  @@map("game_votes")
+}
+
+enum OccasionType {
+  anniversary
+  custom
+}
+
+/// Dates that repeat every year. Birthdays and remembrance days are derived
+/// from Person, so this only stores what the tree can't already tell us.
+model Occasion {
+  id              String       @id @default(uuid()) @db.Uuid
+  familyId        String       @map("family_id") @db.Uuid
+  type            OccasionType
+  title           String?
+  date            DateTime     @db.Date
+  /// The couple for an anniversary; personA alone for a personal milestone.
+  personAId       String?      @map("person_a_id") @db.Uuid
+  personBId       String?      @map("person_b_id") @db.Uuid
+  createdByUserId String       @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  family    Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  personA   Person? @relation("OccasionPersonA", fields: [personAId], references: [id], onDelete: Cascade)
+  personB   Person? @relation("OccasionPersonB", fields: [personBId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("OccasionCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@map("occasions")
 }

@@ -39,7 +39,8 @@
         {
           "photosPermission": "Allow Family Media to access your photos for posts."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

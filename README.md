@@ -120,8 +120,38 @@ From the repo root:
 - [x] Mark viewed + author viewers list (`POST /stories/:id/view`, `GET /stories/:id/viewers`)
 - [x] Mobile story ring, composer, fullscreen viewer
 
+## Phase 5 exit criteria
+
+- [x] 1:1 DM + named group chats (`POST /chats`, `GET /chats?familyId=`)
+- [x] Family-wide "Family" group auto-created; members synced on list
+- [x] Text + image messages (`GET/POST /chats/:id/messages`) via media upload pipeline
+- [x] Chat list with last message preview + unread counts
+- [x] Near-real-time via polling (`?after=` cursor) — WebSocket deferred
+- [x] Mobile Chat inbox, thread, new DM/group picker
+
+## Phase 6 exit criteria
+
+- [x] Admin invite by family invite code (`POST /connection-invites`) + accept/decline
+- [x] Connection with memberships; Nth family can join existing connection
+- [x] Bridge links (`POST /connections/:id/bridge-links`) + side-by-side tree (`GET /connections/:id/tree`)
+- [x] Feed policies: unified vs separate (`GET /connections/:id/feed`)
+- [x] Posts can share to connection (`visibility=connection` + `connectionId`)
+- [x] Context switcher (`PATCH /users/me/context`) — family + optional connection lens
+- [x] Multi-connection (A↔B and A↔C) + multi-family create allowed
+- [x] Mobile: connections screens, context chip, connection feed/tree, share toggle
+
+## Phase 7 exit criteria
+
+- [x] In-app notifications + Expo device token registration (`GET /notifications`, `POST /users/me/devices`)
+- [x] Push fan-out on chat message, join request, connection invite, relationship requests
+- [x] Offline read cache for feed + tree (AsyncStorage)
+- [x] Relationship correction flow (`/relationship-change-requests`) with audit trail
+- [x] Selective post share toggle (`PATCH /posts/:id/share`)
+- [x] Account export (`GET /users/me/export`) + soft-delete PII scrub (`DELETE /users/me`)
+- [x] Admin audit log (`GET /families/:id/audit`)
+
 ## Roadmap
 
 See [`family_app_schema_design_a780f16f.plan.md`](family_app_schema_design_a780f16f.plan.md) for the full phased roadmap.
 
-**Next:** Phase 5 — messaging (DMs & group chat).
+**Next:** Production hardening (EAS push credentials, cloud media, App Store polish).

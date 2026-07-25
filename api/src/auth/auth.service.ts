@@ -9,6 +9,7 @@ import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
+import { splitDisplayName } from '../common/names';
 
 const OTP_TTL_SECONDS = 300;
 
@@ -65,17 +66,30 @@ export class AuthService {
     let user = await this.prisma.user.findUnique({ where: { phone } });
     const isNewUser = !user;
 
+    if (user?.deletedAt) {
+      throw new UnauthorizedException('This account has been deleted');
+    }
+
     if (!user) {
+      const name = dto.displayName?.trim() || '';
+      const split = splitDisplayName(name);
       user = await this.prisma.user.create({
         data: {
           phone,
-          displayName: dto.displayName?.trim() || '',
+          firstName: split.firstName,
+          lastName: split.lastName,
+          displayName: name,
         },
       });
-    } else if (dto.displayName?.trim() && !user.displayName) {
+    } else if (dto.displayName?.trim() && !user.firstName && !user.displayName) {
+      const split = splitDisplayName(dto.displayName);
       user = await this.prisma.user.update({
         where: { id: user.id },
-        data: { displayName: dto.displayName.trim() },
+        data: {
+          firstName: split.firstName,
+          lastName: split.lastName,
+          displayName: dto.displayName.trim(),
+        },
       });
     }
 
@@ -102,7 +116,7 @@ export class AuthService {
         role: m.role,
         settings: m.family.settings,
       })),
-      needsProfile: !user.displayName,
+      needsProfile: !user.firstName && !user.displayName,
       needsFamily: memberships.length === 0,
     };
   }
@@ -110,16 +124,22 @@ export class AuthService {
   serializeUser(user: {
     id: string;
     phone: string;
+    firstName?: string;
+    lastName?: string;
     displayName: string;
     avatarUrl: string | null;
+    status?: string;
     createdAt: Date;
     updatedAt: Date;
   }) {
     return {
       id: user.id,
       phone: user.phone,
+      firstName: user.firstName ?? '',
+      lastName: user.lastName ?? '',
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      status: user.status ?? '',
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

@@ -4,11 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CommentPostDto,
   CreatePostDto,
   ReactPostDto,
+  UpdatePostShareDto,
 } from './dto/posts.dto';
 
 @Injectable()
@@ -29,6 +31,7 @@ export class PostsService {
     post: {
       id: string;
       familyId: string;
+      connectionId?: string | null;
       caption: string | null;
       visibility: string;
       createdAt: Date;
@@ -75,6 +78,7 @@ export class PostsService {
     return {
       id: post.id,
       familyId: post.familyId,
+      connectionId: post.connectionId ?? null,
       caption: post.caption,
       visibility: post.visibility,
       createdAt: post.createdAt,
@@ -140,12 +144,38 @@ export class PostsService {
       throw new BadRequestException('Post needs a caption or media');
     }
 
+    const visibility = dto.visibility ?? 'family';
+    let connectionId: string | null = null;
+
+    if (visibility === 'connection') {
+      if (!dto.connectionId) {
+        throw new BadRequestException(
+          'connectionId required when visibility is connection',
+        );
+      }
+      const membership = await this.prisma.connectionMembership.findFirst({
+        where: {
+          connectionId: dto.connectionId,
+          familyId: dto.familyId,
+          status: 'active',
+        },
+        include: { connection: true },
+      });
+      if (!membership || membership.connection.status !== 'active') {
+        throw new BadRequestException(
+          'Family is not an active member of this connection',
+        );
+      }
+      connectionId = dto.connectionId;
+    }
+
     const post = await this.prisma.post.create({
       data: {
         familyId: dto.familyId,
         authorUserId: userId,
         caption: dto.caption?.trim() || null,
-        visibility: 'family',
+        visibility,
+        connectionId,
         media: dto.media?.length
           ? {
               create: dto.media.map((m, i) => ({
@@ -161,6 +191,79 @@ export class PostsService {
     });
 
     return { post: this.serializePost(post, userId) };
+  }
+
+  async getConnectionFeed(
+    connectionId: string,
+    userId: string,
+    opts: { familyId?: string; cursor?: string; limit?: number } = {},
+  ) {
+    const connection = await this.prisma.connection.findUnique({
+      where: { id: connectionId },
+      include: {
+        memberships: { where: { status: 'active' } },
+      },
+    });
+    if (!connection || connection.status !== 'active') {
+      throw new NotFoundException('Connection not found');
+    }
+
+    const familyIds = connection.memberships.map((m) => m.familyId);
+    const myMembership = await this.prisma.familyMembership.findFirst({
+      where: {
+        userId,
+        status: 'active',
+        familyId: { in: familyIds },
+      },
+    });
+    if (!myMembership) {
+      throw new ForbiddenException('Not a member of this connection');
+    }
+
+    const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50);
+
+    let where: Prisma.PostWhereInput;
+
+    if (connection.feedPolicy === 'separate_feeds') {
+      const focusFamilyId = opts.familyId ?? myMembership.familyId;
+      if (!familyIds.includes(focusFamilyId)) {
+        throw new BadRequestException('familyId is not in this connection');
+      }
+      // Connection members may toggle between member-family feeds
+      where = { familyId: focusFamilyId };
+    } else {
+      // unified_feed: own-family posts + connection-shared posts from all member families
+      where = {
+        OR: [
+          { familyId: myMembership.familyId },
+          {
+            connectionId,
+            visibility: 'connection',
+            familyId: { in: familyIds },
+          },
+        ],
+      };
+    }
+
+    const posts = await this.prisma.post.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      ...(opts.cursor
+        ? { cursor: { id: opts.cursor }, skip: 1 }
+        : {}),
+      include: this.postInclude,
+    });
+
+    const hasMore = posts.length > limit;
+    const page = hasMore ? posts.slice(0, limit) : posts;
+    const nextCursor = hasMore ? page[page.length - 1]?.id : null;
+
+    return {
+      posts: page.map((p) => this.serializePost(p, userId)),
+      nextCursor,
+      feedPolicy: connection.feedPolicy,
+    };
   }
 
   async getFeed(
@@ -252,5 +355,45 @@ export class PostsService {
       include: this.postInclude,
     });
     return { posts: posts.map((p) => this.serializePost(p, userId)) };
+  }
+
+  async updateShare(postId: string, userId: string, dto: UpdatePostShareDto) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.authorUserId !== userId) {
+      throw new ForbiddenException('Only the author can change sharing');
+    }
+
+    let connectionId: string | null = null;
+    if (dto.visibility === 'connection') {
+      const targetConnectionId = dto.connectionId ?? post.connectionId;
+      if (!targetConnectionId) {
+        throw new BadRequestException('connectionId required');
+      }
+      const membership = await this.prisma.connectionMembership.findFirst({
+        where: {
+          connectionId: targetConnectionId,
+          familyId: post.familyId,
+          status: 'active',
+        },
+        include: { connection: true },
+      });
+      if (!membership || membership.connection.status !== 'active') {
+        throw new BadRequestException(
+          'Family is not an active member of this connection',
+        );
+      }
+      connectionId = targetConnectionId;
+    }
+
+    const updated = await this.prisma.post.update({
+      where: { id: postId },
+      data: {
+        visibility: dto.visibility,
+        connectionId,
+      },
+      include: this.postInclude,
+    });
+    return { post: this.serializePost(updated, userId) };
   }
 }

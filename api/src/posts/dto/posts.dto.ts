@@ -18,6 +18,11 @@ export enum MediaTypeDto {
   video = 'video',
 }
 
+export enum PostVisibilityDto {
+  family = 'family',
+  connection = 'connection',
+}
+
 export class PostMediaItemDto {
   @IsEnum(MediaTypeDto)
   mediaType!: MediaTypeDto;
@@ -46,6 +51,14 @@ export class CreatePostDto {
   caption?: string;
 
   @IsOptional()
+  @IsEnum(PostVisibilityDto)
+  visibility?: PostVisibilityDto;
+
+  @IsOptional()
+  @IsUUID()
+  connectionId?: string;
+
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(10)
   @ValidateNested({ each: true })
@@ -65,6 +78,15 @@ export class CommentPostDto {
   @MinLength(1)
   @MaxLength(2000)
   body!: string;
+}
+
+export class UpdatePostShareDto {
+  @IsEnum(PostVisibilityDto)
+  visibility!: PostVisibilityDto;
+
+  @IsOptional()
+  @IsUUID()
+  connectionId?: string | null;
 }
 
 export class PresignMediaDto {

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export type AuthUser = {
   userId: string;
@@ -14,7 +15,10 @@ export type AuthUser = {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -29,12 +33,22 @@ export class AuthGuard implements CanActivate {
         sub: string;
         phone: string;
       }>(token);
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, phone: true, deletedAt: true },
+      });
+      if (!user || user.deletedAt) {
+        throw new UnauthorizedException('Account unavailable');
+      }
+
       (request as Request & { user: AuthUser }).user = {
-        userId: payload.sub,
-        phone: payload.phone,
+        userId: user.id,
+        phone: user.phone,
       };
       return true;
-    } catch {
+    } catch (e) {
+      if (e instanceof UnauthorizedException) throw e;
       throw new UnauthorizedException('Invalid or expired token');
     }
   }

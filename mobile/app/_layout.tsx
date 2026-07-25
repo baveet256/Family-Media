@@ -159,6 +159,39 @@ function RootLayoutNav() {
           name="stories/viewers"
           options={{ title: 'Viewers', presentation: 'modal' }}
         />
+        <Stack.Screen
+          name="chat/new"
+          options={{ title: 'New chat', presentation: 'modal' }}
+        />
+        <Stack.Screen name="chat/[id]" options={{ title: 'Chat' }} />
+        <Stack.Screen name="chat/info" options={{ title: 'Info' }} />
+        <Stack.Screen
+          name="games/new"
+          options={{ title: 'New round', presentation: 'modal' }}
+        />
+        <Stack.Screen name="games/[id]" options={{ title: 'Round' }} />
+        <Stack.Screen name="calendar/index" options={{ title: 'Coming up' }} />
+        <Stack.Screen
+          name="calendar/new"
+          options={{ title: 'Add a date', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="connections/index"
+          options={{ title: 'Connections' }}
+        />
+        <Stack.Screen
+          name="connections/invite"
+          options={{ title: 'Invite family', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="connections/[id]"
+          options={{ title: 'Connection' }}
+        />
+        <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+        <Stack.Screen
+          name="family/relationship-requests"
+          options={{ title: 'Tree corrections' }}
+        />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>

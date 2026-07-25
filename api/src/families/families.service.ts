@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -12,6 +11,7 @@ import {
   InviteByPhoneDto,
   UpdateFamilyDto,
 } from './dto/family.dto';
+import { splitDisplayName } from '../common/names';
 
 type FamilySettings = {
   require_approval?: boolean;
@@ -69,15 +69,6 @@ export class FamiliesService {
   }
 
   async create(userId: string, dto: CreateFamilyDto) {
-    const existingActive = await this.prisma.familyMembership.findFirst({
-      where: { userId, status: 'active' },
-    });
-    if (existingActive) {
-      throw new ConflictException(
-        'You already belong to a family. Multi-family comes in a later phase.',
-      );
-    }
-
     let inviteCode = generateInviteCode();
     for (let attempt = 0; attempt < 5; attempt++) {
       const clash = await this.prisma.family.findUnique({
@@ -110,13 +101,30 @@ export class FamiliesService {
       });
 
       const founder = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+      const displayName =
+        founder.displayName ||
+        [founder.firstName, founder.lastName].filter(Boolean).join(' ') ||
+        founder.phone;
       await tx.person.create({
         data: {
           familyId: created.id,
           userId,
-          displayName: founder.displayName || founder.phone,
+          firstName: founder.firstName || splitDisplayName(displayName).firstName,
+          lastName: founder.lastName || splitDisplayName(displayName).lastName,
+          displayName,
           avatarUrl: founder.avatarUrl,
           isPlaceholder: false,
+        },
+      });
+
+      await tx.chat.create({
+        data: {
+          familyId: created.id,
+          type: 'group',
+          name: 'Family',
+          participants: {
+            create: [{ userId, lastReadAt: new Date() }],
+          },
         },
       });
 

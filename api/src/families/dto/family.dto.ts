@@ -1,5 +1,22 @@
-import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
 export class UpdateUserDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  /** @deprecated prefer firstName/lastName — still accepted for back-compat */
   @IsOptional()
   @IsString()
   @MinLength(1)
@@ -8,6 +25,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(140)
+  status?: string;
 }
 
 export class CreateFamilyDto {

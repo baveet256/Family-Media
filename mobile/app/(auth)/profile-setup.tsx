@@ -1,7 +1,9 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -10,21 +12,49 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { updateMe } from '@/lib/api';
+import { presignMedia, updateMe, uploadMediaFile } from '@/lib/api';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const { token, refresh } = useAuth();
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const pickAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setAvatarUri(result.assets[0].uri);
+  };
+
   const onSave = async () => {
-    if (!token) return;
+    if (!token || !firstName.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      await updateMe(token, { displayName: name.trim() });
+      let avatarUrl: string | undefined;
+      if (avatarUri) {
+        const name = `avatar.${avatarUri.split('.').pop() || 'jpg'}`;
+        const signed = await presignMedia(token, 'image', name);
+        const uploaded = await uploadMediaFile(token, signed.uploadUrl, signed.key, {
+          uri: avatarUri,
+          name,
+          type: 'image/jpeg',
+        });
+        avatarUrl = uploaded.publicUrl;
+      }
+      await updateMe(token, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        ...(avatarUrl ? { avatarUrl } : {}),
+      });
       await refresh();
       router.replace('/');
     } catch (e) {
@@ -36,24 +66,43 @@ export default function ProfileSetupScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>What’s your name?</Text>
+      <Text style={styles.title}>Your name</Text>
       <Text style={styles.subtitle}>
-        This is how family members will see you.
+        First and last name — this becomes how family sees you.
       </Text>
 
+      <Pressable style={styles.avatarBtn} onPress={() => void pickAvatar()}>
+        {avatarUri ? (
+          <Image source={{ uri: avatarUri }} style={styles.avatar} />
+        ) : (
+          <Text style={styles.avatarPlaceholder}>Add photo</Text>
+        )}
+      </Pressable>
+
+      <Text style={styles.label}>First name</Text>
       <TextInput
         style={styles.input}
-        value={name}
-        onChangeText={setName}
-        placeholder="Display name"
+        value={firstName}
+        onChangeText={setFirstName}
+        placeholder="First name"
         autoFocus
+      />
+      <Text style={styles.label}>Last name</Text>
+      <TextInput
+        style={styles.input}
+        value={lastName}
+        onChangeText={setLastName}
+        placeholder="Last name"
       />
 
       {error && <Text style={styles.error}>{error}</Text>}
 
       <Pressable
-        style={[styles.button, (!name.trim() || busy) && styles.buttonDisabled]}
-        disabled={!name.trim() || busy}
+        style={[
+          styles.button,
+          (!firstName.trim() || busy) && styles.buttonDisabled,
+        ]}
+        disabled={!firstName.trim() || busy}
         onPress={() => void onSave()}>
         {busy ? (
           <ActivityIndicator color="#fff" />
@@ -69,8 +118,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, backgroundColor: '#fafafa' },
   title: { fontSize: 28, fontWeight: '700', color: '#111' },
   subtitle: { marginTop: 8, fontSize: 15, color: '#666' },
+  avatarBtn: {
+    marginTop: 24,
+    alignSelf: 'center',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#e8e8e8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatar: { width: 96, height: 96 },
+  avatarPlaceholder: { color: '#666', fontWeight: '600', fontSize: 13 },
+  label: { marginTop: 16, fontSize: 13, fontWeight: '600', color: '#888' },
   input: {
-    marginTop: 28,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: '#e5e5e5',
     backgroundColor: '#fff',

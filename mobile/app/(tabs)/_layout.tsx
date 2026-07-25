@@ -45,9 +45,28 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="games"
+        options={{
+          title: 'Games',
+          headerShown: false,
+          tabBarIcon: ({ color }) => (
+            <SymbolView
+              name={{
+                ios: 'gamecontroller.fill',
+                android: 'sports_esports',
+                web: 'sports_esports',
+              }}
+              tintColor={color}
+              size={26}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="chat"
         options={{
           title: 'Chat',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{

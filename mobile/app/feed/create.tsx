@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -19,16 +19,31 @@ import {
   uploadMediaFile,
 } from '@/lib/api';
 
+type ShareTarget = 'family' | string; // connection id
+
 export default function CreatePostScreen() {
   const router = useRouter();
-  const { token, families } = useAuth();
+  const { token, families, activeFamily, connections } = useAuth();
   const params = useLocalSearchParams<{ familyId?: string }>();
   const familyId =
     typeof params.familyId === 'string'
       ? params.familyId
-      : families.find((f) => f.status === 'active')?.id ?? '';
+      : activeFamily?.id ??
+        families.find((f) => f.status === 'active')?.id ??
+        '';
+
+  const unifiedConnections = useMemo(
+    () =>
+      connections.filter(
+        (c) =>
+          c.feedPolicy === 'unified_feed' &&
+          c.families.some((f) => f.id === familyId),
+      ),
+    [connections, familyId],
+  );
 
   const [caption, setCaption] = useState('');
+  const [shareTarget, setShareTarget] = useState<ShareTarget>('family');
   const [asset, setAsset] = useState<{
     uri: string;
     name: string;
@@ -40,9 +55,7 @@ export default function CreatePostScreen() {
 
   const pick = async (videos: boolean) => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: videos
-        ? ['videos']
-        : ['images'],
+      mediaTypes: videos ? ['videos'] : ['images'],
       quality: 0.85,
       allowsMultipleSelection: false,
     });
@@ -74,14 +87,11 @@ export default function CreatePostScreen() {
 
       if (asset) {
         if (Platform.OS === 'web') {
-          // On web, use a public placeholder or data URL isn't ideal for API —
-          // skip binary upload and post caption-only unless we have a remote URI.
           if (asset.uri.startsWith('http')) {
             media = [
               { mediaType: asset.mediaType, url: asset.uri, sortOrder: 0 },
             ];
           } else {
-            // For local web blob URIs, upload via FormData still works in many browsers
             const signed = await presignMedia(
               token,
               asset.mediaType,
@@ -119,10 +129,20 @@ export default function CreatePostScreen() {
         }
       }
 
+      const shareToUnified =
+        shareTarget !== 'family' &&
+        unifiedConnections.some((c) => c.id === shareTarget);
+
       await createPost(token, {
         familyId,
         caption: caption.trim() || undefined,
         media,
+        ...(shareToUnified
+          ? {
+              visibility: 'connection' as const,
+              connectionId: shareTarget,
+            }
+          : { visibility: 'family' as const }),
       });
       router.replace('/');
     } catch (e) {
@@ -145,6 +165,34 @@ export default function CreatePostScreen() {
         multiline
         textAlignVertical="top"
       />
+
+      <Text style={styles.sectionLabel}>Who can see this?</Text>
+      <Pressable
+        style={[
+          styles.shareOption,
+          shareTarget === 'family' && styles.shareOptionOn,
+        ]}
+        onPress={() => setShareTarget('family')}>
+        <Text style={styles.shareTitle}>Family feed</Text>
+        <Text style={styles.shareMeta}>Only your family home</Text>
+      </Pressable>
+
+      {unifiedConnections.map((c) => (
+        <Pressable
+          key={c.id}
+          style={[
+            styles.shareOption,
+            shareTarget === c.id && styles.shareOptionOn,
+          ]}
+          onPress={() => setShareTarget(c.id)}>
+          <Text style={styles.shareTitle}>
+            Also share · {c.name || 'Connection'}
+          </Text>
+          <Text style={styles.shareMeta}>
+            Your family feed + {c.families.map((f) => f.name).join(' & ')}
+          </Text>
+        </Pressable>
+      ))}
 
       {asset && asset.mediaType === 'image' && (
         <Image source={{ uri: asset.uri }} style={styles.preview} />
@@ -191,6 +239,29 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, backgroundColor: '#fafafa' },
   title: { fontSize: 26, fontWeight: '700', color: '#111' },
   subtitle: { marginTop: 6, fontSize: 15, color: '#666' },
+  sectionLabel: {
+    marginTop: 18,
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  shareOption: {
+    marginBottom: 8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: '#e5e5e5',
+  },
+  shareOptionOn: {
+    borderColor: '#111',
+    backgroundColor: '#f8f8f8',
+  },
+  shareTitle: { fontWeight: '700', color: '#111' },
+  shareMeta: { marginTop: 2, fontSize: 12, color: '#777' },
   input: {
     marginTop: 20,
     minHeight: 120,

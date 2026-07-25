@@ -13,30 +13,40 @@ import {
 
 import { useAuth } from '@/contexts/AuthContext';
 import { StoryRingRow } from '@/components/StoryRingRow';
+import { UpcomingStrip } from '@/components/UpcomingStrip';
 import {
   fetchFeed,
   fetchStoryRings,
+  fetchUpcoming,
   reactToPost,
   type FeedPost,
   type StoryRing,
+  type UpcomingItem,
 } from '@/lib/api';
+import { cacheGet, cacheSet } from '@/lib/offlineCache';
 
 const REACTIONS = ['❤️', '😂', '👏', '🔥', '😮'];
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { token, user, families, pendingJoinRequests } = useAuth();
-  const family =
-    families.find((f) => f.status === 'active') ??
-    families.find((f) => f.role === 'admin') ??
-    families[0];
+  const {
+    token,
+    user,
+    families,
+    pendingJoinRequests,
+    activeFamily,
+  } = useAuth();
+  const family = activeFamily;
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [rings, setRings] = useState<StoryRing[]>([]);
+  const [upcoming, setUpcoming] = useState<UpcomingItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [offline, setOffline] = useState(false);
 
   const loadStories = useCallback(async () => {
     if (!token || !family?.id || family.status === 'pending') return;
@@ -48,6 +58,27 @@ export default function HomeScreen() {
     }
   }, [token, family?.id, family?.status]);
 
+  const loadUpcoming = useCallback(async () => {
+    if (!token || !family?.id || family.status === 'pending') return;
+    try {
+      const data = await fetchUpcoming(token, family.id, { days: 60, limit: 10 });
+      setUpcoming(data.items);
+    } catch {
+      // non-blocking for feed
+    }
+  }, [token, family?.id, family?.status]);
+
+  const fetchPostsPage = useCallback(
+    async (opts: { cursor?: string; limit?: number } = {}) => {
+      if (!token || !family?.id) {
+        return { posts: [] as FeedPost[], nextCursor: null as string | null };
+      }
+      // Home is always the family feed — unified connection sharing is opt-in per post
+      return fetchFeed(token, family.id, opts);
+    },
+    [token, family?.id],
+  );
+
   const load = useCallback(
     async (opts: { reset?: boolean } = {}) => {
       if (!token || !family?.id || family.status === 'pending') return;
@@ -58,7 +89,7 @@ export default function HomeScreen() {
       }
       setError(null);
       try {
-        const data = await fetchFeed(token, family.id, {
+        const data = await fetchPostsPage({
           cursor: opts.reset ? undefined : cursor ?? undefined,
           limit: 20,
         });
@@ -66,7 +97,7 @@ export default function HomeScreen() {
           opts.reset ? data.posts : [...prev, ...data.posts],
         );
         setCursor(data.nextCursor);
-        if (opts.reset) await loadStories();
+        if (opts.reset) await Promise.all([loadStories(), loadUpcoming()]);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load feed');
       } finally {
@@ -74,29 +105,51 @@ export default function HomeScreen() {
         setRefreshing(false);
       }
     },
-    [token, family?.id, family?.status, cursor, loadStories],
+    [
+      token,
+      family?.id,
+      family?.status,
+      cursor,
+      loadStories,
+      loadUpcoming,
+      fetchPostsPage,
+    ],
   );
 
   useEffect(() => {
     setPosts([]);
     setCursor(null);
+    setOffline(false);
     void (async () => {
       if (!token || !family?.id || family.status === 'pending') return;
+      const cacheKey = `feed:family:${family.id}`;
+      const cached = await cacheGet<FeedPost[]>(cacheKey);
+      if (cached?.value?.length) {
+        setPosts(cached.value);
+      }
       setLoading(true);
       try {
         const [feedData] = await Promise.all([
-          fetchFeed(token, family.id, { limit: 20 }),
+          fetchPostsPage({ limit: 20 }),
           loadStories(),
+          loadUpcoming(),
         ]);
         setPosts(feedData.posts);
         setCursor(feedData.nextCursor);
+        await cacheSet(cacheKey, feedData.posts);
+        setOffline(false);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load feed');
+        if (cached?.value?.length) {
+          setOffline(true);
+          setError('Showing cached feed (offline)');
+        } else {
+          setError(e instanceof Error ? e.message : 'Failed to load feed');
+        }
       } finally {
         setLoading(false);
       }
     })();
-  }, [token, family?.id, family?.status, loadStories]);
+  }, [token, family?.id, family?.status, loadStories, loadUpcoming, fetchPostsPage]);
 
   const onReact = async (postId: string, emoji: string) => {
     if (!token) return;
@@ -158,6 +211,11 @@ export default function HomeScreen() {
           <Text style={styles.eyebrow}>Family feed</Text>
           <Text style={styles.title}>{family.name}</Text>
           <Text style={styles.subtitle}>Hi {user?.displayName || 'there'}</Text>
+          {offline ? (
+            <Text style={{ marginTop: 4, color: '#b45309', fontSize: 12 }}>
+              Offline · cached
+            </Text>
+          ) : null}
         </View>
         <Pressable
           style={styles.compose}
@@ -201,6 +259,8 @@ export default function HomeScreen() {
         rings={rings}
         currentUserId={user?.id}
       />
+
+      <UpcomingStrip familyId={family.id} items={upcoming} />
 
       {error && <Text style={styles.error}>{error}</Text>}
 

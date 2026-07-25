@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -15,6 +16,7 @@ import {
   CommentPostDto,
   CreatePostDto,
   ReactPostDto,
+  UpdatePostShareDto,
 } from './dto/posts.dto';
 import { PostsService } from './posts.service';
 
@@ -26,6 +28,15 @@ export class PostsController {
   @Post('posts')
   create(@CurrentUser() user: AuthUser, @Body() dto: CreatePostDto) {
     return this.posts.create(user.userId, dto);
+  }
+
+  @Patch('posts/:id/share')
+  share(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePostShareDto,
+  ) {
+    return this.posts.updateShare(id, user.userId, dto);
   }
 
   @Get('families/:id/feed')

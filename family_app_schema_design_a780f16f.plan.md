@@ -19,13 +19,13 @@ todos:
     status: completed
   - id: phase-5
     content: "Phase 5 — Messaging (DMs & group chat)"
-    status: pending
+    status: completed
   - id: phase-6
     content: "Phase 6 — Family connections (unite, bridge trees, feed policies)"
-    status: pending
+    status: completed
   - id: phase-7
     content: "Phase 7 — Polish (notifications, offline, audit, account lifecycle)"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -764,6 +764,8 @@ flowchart LR
 - 1:1 and group messaging works with text + images
 - New messages appear without manual refresh
 
+**Status:** Completed — polling-based delivery (`?after=`); WebSocket deferred to polish.
+
 **Estimated effort:** 2 weeks
 
 ---
@@ -811,6 +813,8 @@ flowchart LR
 - Third family can join same connection
 - User in Family A switches between Connection(A,B) and Connection(A,C)
 
+**Status:** Completed — invite-by-family-code, bridge links, unified/separate feeds, context switcher, N-family join, multi-connection. Placeholder merge deferred to polish.
+
 **Estimated effort:** 3–4 weeks
 
 ---
@@ -840,6 +844,8 @@ flowchart LR
 - App usable offline for reading feed/tree
 - Relationship edit flow works with full audit trail
 - Account deletion removes PII per policy
+
+**Status:** Completed (v1) — in-app notifications + Expo push token registration for chat/join/connection/relationship events; AsyncStorage offline read cache for feed/tree; relationship change requests with audit log; export + soft-delete account. Deferred: voice notes, closure table, video thumbnails, full EAS production push credentials.
 
 **Estimated effort:** 3–4 weeks
 
@@ -890,7 +896,7 @@ flowchart LR
 
 **Suggested next step**
 
-Start **Phase 5**:
-1. Chats + participants + messages schema
-2. 1:1 and group messaging APIs
-3. Chat tab inbox + conversation UI (poll OK; WebSocket later)
+Roadmap phases 0–7 are complete for the documented MVP+vision slice. Next product work is production hardening:
+1. EAS project + real APNs/FCM credentials for push
+2. S3/R2 media + CDN
+3. Voice notes / selective-share polish / performance indexes as needed

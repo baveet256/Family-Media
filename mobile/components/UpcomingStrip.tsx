@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { UpcomingItem } from '@/lib/api';
 import { occasionEmoji, whenLabel } from '@/lib/occasions';
+import { fonts, theme } from '@/lib/theme';
 
 type Props = {
   familyId: string;
@@ -60,31 +61,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    backgroundColor: theme.paperElevated,
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#e5e5e5',
+    borderColor: theme.line,
   },
   cardToday: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#f59e0b',
-    borderWidth: 2,
+    backgroundColor: theme.goldSoft,
+    borderColor: theme.gold,
+    borderWidth: 1.5,
   },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eee' },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.accentSoft },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 20 },
   label: {
+    fontFamily: fonts.bodyBold,
     fontSize: 11,
-    fontWeight: '800',
-    color: '#888',
+    color: theme.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
-  labelToday: { color: '#b45309' },
-  title: { marginTop: 2, fontSize: 15, fontWeight: '700', color: '#111' },
-  meta: { marginTop: 2, fontSize: 12, color: '#888' },
-  chevron: { fontSize: 22, color: '#bbb' },
+  labelToday: { color: theme.gold },
+  title: {
+    marginTop: 2,
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: theme.ink,
+  },
+  meta: {
+    marginTop: 2,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: theme.muted,
+  },
+  chevron: { fontSize: 22, color: theme.faint },
 });

@@ -15,8 +15,44 @@ function getDefaultApiUrl(): string {
   return `http://localhost:${DEFAULT_PORT}`;
 }
 
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? getDefaultApiUrl();
+/**
+ * Release builds must talk to a real HTTPS host. Failing loudly here surfaces a
+ * misconfigured build during internal testing instead of shipping a store
+ * binary that points at localhost or sends tokens over cleartext HTTP.
+ */
+function resolveApiBaseUrl(): string {
+  const configured = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+  if (!__DEV__) {
+    if (!configured) {
+      throw new Error(
+        'EXPO_PUBLIC_API_URL must be set for release builds. Configure it in eas.json.',
+      );
+    }
+    if (!configured.startsWith('https://')) {
+      throw new Error(
+        `EXPO_PUBLIC_API_URL must use https:// in release builds (got "${configured}").`,
+      );
+    }
+    return configured;
+  }
+
+  return configured || getDefaultApiUrl();
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
+
+type UnauthorizedHandler = () => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/**
+ * Lets AuthContext tear down the session from anywhere a request 401s, so an
+ * expired token cannot leave the UI in a logged-in-but-broken state.
+ */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
+  unauthorizedHandler = handler;
+}
 
 export type HealthResponse = {
   status: 'ok' | 'error';
@@ -209,6 +245,13 @@ async function apiFetch<T>(
           ? (data as { message: string[] }).message.join(', ')
           : String((data as { message: string }).message)
         : `Request failed (${response.status})`;
+
+    // Only for authenticated calls: a 401 from the OTP endpoints just means a
+    // wrong code, not an expired session.
+    if (response.status === 401 && token) {
+      unauthorizedHandler?.();
+    }
+
     throw new ApiError(message, response.status, data);
   }
 

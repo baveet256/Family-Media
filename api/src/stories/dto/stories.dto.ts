@@ -10,6 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { MediaTypeDto } from '../../posts/dto/posts.dto';
+import { IsSafeUrl } from '../../common/validators/is-safe-url';
 
 export class CreateStoryDto {
   @IsUUID()
@@ -18,8 +19,7 @@ export class CreateStoryDto {
   @IsEnum(MediaTypeDto)
   mediaType!: MediaTypeDto;
 
-  @IsString()
-  @MinLength(1)
+  @IsSafeUrl()
   url!: string;
 
   /** Optional override; default 24h. Max 24h for Phase 4. */

@@ -12,6 +12,8 @@ import {
 
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchChats, type ChatSummary } from '@/lib/api';
+import { fonts, theme } from '@/lib/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function preview(chat: ChatSummary): string {
   const m = chat.lastMessage;
@@ -35,6 +37,7 @@ function timeLabel(iso: string): string {
 
 export default function ChatInboxScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { token, activeFamily } = useAuth();
   const family = activeFamily;
 
@@ -87,7 +90,7 @@ export default function ChatInboxScreen() {
 
   if (!family || family.status === 'pending') {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
         <Text style={styles.emptyTitle}>Chat</Text>
         <Text style={styles.emptySub}>Join an active family to message.</Text>
       </View>
@@ -96,8 +99,11 @@ export default function ChatInboxScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chat</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View>
+          <Text style={styles.eyebrow}>Family Media</Text>
+          <Text style={styles.headerTitle}>Chat</Text>
+        </View>
         <Pressable
           style={styles.newBtn}
           onPress={() =>
@@ -212,64 +218,112 @@ export default function ChatInboxScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: theme.paper },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e5e5',
-    backgroundColor: '#fff',
+    borderBottomColor: theme.line,
+    backgroundColor: theme.paper,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#111' },
+  eyebrow: {
+    fontFamily: fonts.displaySoft,
+    fontSize: 13,
+    color: theme.gold,
+  },
+  headerTitle: {
+    fontFamily: fonts.display,
+    fontSize: 30,
+    color: theme.ink,
+    letterSpacing: -0.4,
+  },
   newBtn: {
-    backgroundColor: '#111',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: theme.accent,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginBottom: 2,
   },
-  newBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  newBtnText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.paperElevated,
+    fontSize: 14,
+  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+    backgroundColor: theme.paper,
   },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#111' },
-  emptySub: { marginTop: 8, fontSize: 15, color: '#888', textAlign: 'center' },
-  error: { color: '#b00020', padding: 12, textAlign: 'center' },
+  emptyTitle: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    color: theme.ink,
+  },
+  emptySub: {
+    marginTop: 8,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: theme.muted,
+    textAlign: 'center',
+  },
+  error: {
+    fontFamily: fonts.bodyMed,
+    color: theme.danger,
+    padding: 12,
+    textAlign: 'center',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    paddingVertical: 14,
+    backgroundColor: theme.paperElevated,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.line,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#e8e8e8',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  avatarCircle: { backgroundColor: '#fdeacd' },
-  avatarText: { fontSize: 18, fontWeight: '700', color: '#444' },
+  avatarCircle: { backgroundColor: theme.goldSoft },
+  avatarText: {
+    fontFamily: fonts.displayMed,
+    fontSize: 18,
+    color: theme.inkSoft,
+  },
   sectionHead: {
     paddingHorizontal: 16,
     paddingTop: 22,
     paddingBottom: 8,
-    backgroundColor: '#fafafa',
+    backgroundColor: theme.paper,
   },
-  sectionTitle: { fontSize: 13, fontWeight: '800', color: '#9a3412' },
-  sectionHint: { marginTop: 2, fontSize: 11, color: '#a8a29e' },
-  circleTag: { marginTop: 2, fontSize: 12, color: '#a16207', fontWeight: '600' },
+  sectionTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: theme.gold,
+  },
+  sectionHint: {
+    marginTop: 2,
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: theme.faint,
+  },
+  circleTag: {
+    marginTop: 2,
+    fontFamily: fonts.bodyMed,
+    fontSize: 12,
+    color: theme.gold,
+  },
   rowBody: { flex: 1, minWidth: 0 },
   rowTop: {
     flexDirection: 'row',
@@ -277,23 +331,42 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  rowTitle: { flex: 1, fontSize: 16, fontWeight: '600', color: '#111' },
-  rowTime: { fontSize: 12, color: '#999' },
+  rowTitle: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    color: theme.ink,
+  },
+  rowTime: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: theme.faint,
+  },
   viaTag: {
     marginTop: 2,
+    fontFamily: fonts.bodyMed,
     fontSize: 12,
-    fontWeight: '600',
-    color: '#db2777',
+    color: theme.via,
   },
-  rowPreview: { flex: 1, marginTop: 2, fontSize: 14, color: '#777' },
+  rowPreview: {
+    flex: 1,
+    marginTop: 2,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: theme.muted,
+  },
   badge: {
     minWidth: 20,
     height: 20,
     borderRadius: 10,
     paddingHorizontal: 6,
-    backgroundColor: '#111',
+    backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  badgeText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.paperElevated,
+    fontSize: 11,
+  },
 });

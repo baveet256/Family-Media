@@ -50,7 +50,8 @@ export class UsersService {
         id: m.family.id,
         name: m.family.name,
         avatarUrl: m.family.avatarUrl,
-        inviteCode: m.family.inviteCode,
+        // Withheld until approved, so an unapproved joiner cannot invite others.
+        inviteCode: m.status === 'active' ? m.family.inviteCode : null,
         role: m.role,
         status: m.status,
         personId: personByFamily.get(m.family.id) ?? null,

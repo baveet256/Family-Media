@@ -1,18 +1,24 @@
 import { SymbolView } from 'expo-symbols';
 import { Tabs } from 'expo-router';
+import { Platform, StyleSheet } from 'react-native';
 
 import Colors from '@/constants/Colors';
+import { fonts, theme } from '@/lib/theme';
 import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const c = Colors[colorScheme];
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false,
+        tabBarActiveTintColor: c.tint,
+        tabBarInactiveTintColor: c.tabIconDefault,
+        tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarItemStyle: styles.tabItem,
       }}>
       <Tabs.Screen
         name="index"
@@ -22,7 +28,7 @@ export default function TabLayout() {
             <SymbolView
               name={{ ios: 'house.fill', android: 'home', web: 'home' }}
               tintColor={color}
-              size={26}
+              size={24}
             />
           ),
         }}
@@ -34,12 +40,12 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{
-                ios: 'person.3.fill',
+                ios: 'leaf.fill',
                 android: 'account_tree',
                 web: 'account_tree',
               }}
               tintColor={color}
-              size={26}
+              size={24}
             />
           ),
         }}
@@ -48,7 +54,6 @@ export default function TabLayout() {
         name="games"
         options={{
           title: 'Games',
-          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{
@@ -57,7 +62,7 @@ export default function TabLayout() {
                 web: 'sports_esports',
               }}
               tintColor={color}
-              size={26}
+              size={24}
             />
           ),
         }}
@@ -66,7 +71,6 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: 'Chat',
-          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{
@@ -75,7 +79,7 @@ export default function TabLayout() {
                 web: 'chat',
               }}
               tintColor={color}
-              size={26}
+              size={24}
             />
           ),
         }}
@@ -86,9 +90,13 @@ export default function TabLayout() {
           title: 'Profile',
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{ ios: 'person.circle.fill', android: 'person', web: 'person' }}
+              name={{
+                ios: 'person.circle.fill',
+                android: 'person',
+                web: 'person',
+              }}
               tintColor={color}
-              size={26}
+              size={24}
             />
           ),
         }}
@@ -96,3 +104,23 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: theme.paperElevated,
+    borderTopColor: theme.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 6,
+    height: Platform.OS === 'ios' ? 88 : 64,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  tabLabel: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 11,
+    marginBottom: Platform.OS === 'ios' ? 0 : 6,
+  },
+  tabItem: {
+    paddingTop: 2,
+  },
+});

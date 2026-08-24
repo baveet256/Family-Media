@@ -63,7 +63,10 @@ export class TreeService {
   }
 
   async getTree(familyId: string, userId: string) {
-    await this.requireMember(familyId, userId);
+    const membership = await this.requireMember(familyId, userId);
+    // Pending members see the shape of the tree to pick their parents during
+    // onboarding, but not everyone's contact details.
+    const canSeeContactDetails = membership.status === 'active';
 
     const family = await this.prisma.family.findUnique({
       where: { id: familyId },
@@ -95,7 +98,7 @@ export class TreeService {
         avatarUrl: p.avatarUrl,
         userId: p.userId,
         isPlaceholder: p.isPlaceholder,
-        phone: p.phone,
+        phone: canSeeContactDetails ? p.phone : null,
       })),
       edges: relationships.map((r) => ({
         id: r.id,
@@ -135,7 +138,14 @@ export class TreeService {
       },
     });
     if (!person) throw new NotFoundException('Person not found');
-    await this.requireMemberOrConnected(person.familyId, userId);
+    const viaMembership = await this.requireMemberOrConnected(
+      person.familyId,
+      userId,
+    );
+    // null means access was granted through an active connection; a direct
+    // membership still has to be active to see contact details.
+    const canSeeContactDetails =
+      !viaMembership || viaMembership.status === 'active';
 
     const [asChild, asParent, spouses, siblings] = await Promise.all([
       this.prisma.relationship.findMany({
@@ -270,10 +280,10 @@ export class TreeService {
         avatarUrl: person.avatarUrl,
         userId: person.userId,
         isPlaceholder: person.isPlaceholder,
-        phone: person.phone,
+        phone: canSeeContactDetails ? person.phone : null,
         status: person.user?.status || '',
-        birthDate: person.birthDate,
-        deathDate: person.deathDate,
+        birthDate: canSeeContactDetails ? person.birthDate : null,
+        deathDate: canSeeContactDetails ? person.deathDate : null,
         family: person.family,
       },
       parents,

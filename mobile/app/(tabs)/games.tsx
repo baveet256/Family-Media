@@ -17,6 +17,8 @@ import {
   type GameRoundSummary,
   type GamesHub,
 } from '@/lib/api';
+import { fonts, theme } from '@/lib/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -51,6 +53,7 @@ function callToAction(round: GameRoundSummary) {
 
 export default function GamesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { token, activeFamily } = useAuth();
   const family = activeFamily;
 
@@ -87,7 +90,7 @@ export default function GamesScreen() {
 
   if (!family || family.status === 'pending') {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
         <Text style={styles.emptyTitle}>Games</Text>
         <Text style={styles.emptySub}>
           Join an active family to play together.
@@ -102,7 +105,11 @@ export default function GamesScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+      contentContainerStyle={{
+        padding: 20,
+        paddingTop: insets.top + 12,
+        paddingBottom: 48,
+      }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -110,6 +117,7 @@ export default function GamesScreen() {
             setRefreshing(true);
             void load();
           }}
+          tintColor={theme.accent}
         />
       }>
       <View style={styles.headerRow}>
@@ -252,70 +260,99 @@ export default function GamesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: theme.paper },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#fafafa',
+    backgroundColor: theme.paper,
   },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#111' },
-  emptySub: { marginTop: 8, fontSize: 15, color: '#888', textAlign: 'center' },
+  emptyTitle: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    color: theme.ink,
+  },
+  emptySub: {
+    marginTop: 8,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: theme.muted,
+    textAlign: 'center',
+  },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#888',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontFamily: fonts.displaySoft,
+    fontSize: 14,
+    color: theme.gold,
   },
-  title: { fontSize: 28, fontWeight: '700', color: '#111', marginTop: 2 },
+  title: {
+    fontFamily: fonts.display,
+    fontSize: 32,
+    color: theme.ink,
+    marginTop: 2,
+    letterSpacing: -0.4,
+  },
   newBtn: {
-    backgroundColor: '#111',
+    backgroundColor: theme.accent,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 14,
   },
-  newBtnText: { color: '#fff', fontWeight: '700' },
-  error: { marginTop: 16, color: '#b91c1c' },
+  newBtnText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.paperElevated,
+  },
+  error: {
+    marginTop: 16,
+    fontFamily: fonts.bodyMed,
+    color: theme.danger,
+  },
   section: {
-    marginTop: 24,
+    marginTop: 28,
     marginBottom: 10,
+    fontFamily: fonts.bodyBold,
     fontSize: 12,
-    fontWeight: '700',
-    color: '#888',
+    color: theme.muted,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    backgroundColor: theme.paperElevated,
+    borderRadius: 18,
     padding: 16,
     marginBottom: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#e5e5e5',
+    borderColor: theme.line,
   },
   cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  cardKind: { fontSize: 13, fontWeight: '700', color: '#111' },
-  cardTime: { fontSize: 12, fontWeight: '600', color: '#d97706' },
+  cardKind: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: theme.inkSoft,
+  },
+  cardTime: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 12,
+    color: theme.gold,
+  },
   cardPrompt: {
     marginTop: 8,
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#111',
-    lineHeight: 25,
+    fontFamily: fonts.displayMed,
+    fontSize: 22,
+    color: theme.ink,
+    lineHeight: 28,
   },
   cardPhoto: {
     marginTop: 12,
     width: '100%',
     height: 160,
-    borderRadius: 10,
-    backgroundColor: '#eee',
+    borderRadius: 12,
+    backgroundColor: theme.accentSoft,
   },
   cardBottom: {
     marginTop: 12,
@@ -324,32 +361,54 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  cardMeta: { fontSize: 13, color: '#777', flexShrink: 1 },
-  cardCta: { fontSize: 13, fontWeight: '700', color: '#111' },
+  cardMeta: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: theme.muted,
+    flexShrink: 1,
+  },
+  cardCta: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: theme.accent,
+  },
   emptyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    backgroundColor: theme.paperElevated,
+    borderRadius: 18,
     padding: 18,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#e5e5e5',
+    borderColor: theme.line,
   },
-  emptyCardTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
-  emptyCardBody: { marginTop: 6, fontSize: 14, color: '#777', lineHeight: 20 },
+  emptyCardTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    color: theme.ink,
+  },
+  emptyCardBody: {
+    marginTop: 6,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: theme.muted,
+    lineHeight: 20,
+  },
   inlineBtn: {
     marginTop: 14,
     alignSelf: 'flex-start',
-    backgroundColor: '#111',
-    borderRadius: 10,
+    backgroundColor: theme.accent,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  inlineBtnText: { color: '#fff', fontWeight: '700' },
+  inlineBtnText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.paperElevated,
+  },
   shelf: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    backgroundColor: theme.paperElevated,
+    borderRadius: 18,
     paddingVertical: 4,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#e5e5e5',
+    borderColor: theme.line,
   },
   shelfRow: {
     flexDirection: 'row',
@@ -363,25 +422,46 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#eee',
+    backgroundColor: theme.accentSoft,
   },
   shelfFallback: { alignItems: 'center', justifyContent: 'center' },
-  shelfInitial: { fontWeight: '700', color: '#444' },
-  shelfName: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111' },
-  shelfWins: { fontSize: 13, color: '#777' },
+  shelfInitial: {
+    fontFamily: fonts.bodyBold,
+    color: theme.inkSoft,
+  },
+  shelfName: {
+    flex: 1,
+    fontFamily: fonts.bodyMed,
+    fontSize: 15,
+    color: theme.ink,
+  },
+  shelfWins: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: theme.muted,
+  },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: theme.paperElevated,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 8,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#e5e5e5',
+    borderColor: theme.line,
   },
-  resultPrompt: { fontSize: 15, fontWeight: '600', color: '#111' },
-  resultMeta: { marginTop: 3, fontSize: 13, color: '#777' },
-  resultChevron: { fontSize: 22, color: '#bbb' },
+  resultPrompt: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 15,
+    color: theme.ink,
+  },
+  resultMeta: {
+    marginTop: 3,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: theme.muted,
+  },
+  resultChevron: { fontSize: 22, color: theme.faint },
 });

@@ -13,6 +13,7 @@ import {
   getStoredToken,
   setActiveContext,
   setStoredToken,
+  setUnauthorizedHandler,
   type ActiveContext,
   type ConnectionSummary,
   type FamilySummary,
@@ -20,6 +21,7 @@ import {
   type User,
   verifyOtp,
 } from '@/lib/api';
+import { cacheClearAll } from '@/lib/offlineCache';
 import { registerForPushNotifications } from '@/lib/push';
 
 type AuthState = {
@@ -107,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       applyMe(stored, me);
     } catch {
       await setStoredToken(null);
+      await cacheClearAll();
       clearSession();
     } finally {
       setLoading(false);
@@ -116,6 +119,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Any authenticated request that comes back 401 means the session is gone;
+  // drop the token and cached data so the app returns to the login screen.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      void (async () => {
+        await setStoredToken(null);
+        await cacheClearAll();
+        clearSession();
+      })();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession]);
 
   const signInWithOtp = useCallback(
     async (phone: string, otp: string, displayName?: string) => {
@@ -129,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await setStoredToken(null);
+    await cacheClearAll();
     clearSession();
   }, [clearSession]);
 

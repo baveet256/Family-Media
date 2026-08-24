@@ -32,3 +32,19 @@ export async function cacheRemove(key: string): Promise<void> {
     // ignore
   }
 }
+
+/**
+ * Cached feeds and trees contain names, photos and phone numbers, so they must
+ * not survive a sign-out on a shared device.
+ */
+export async function cacheClearAll(): Promise<void> {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const ours = keys.filter((k) => k.startsWith(PREFIX));
+    if (ours.length) {
+      await AsyncStorage.removeMany(ours);
+    }
+  } catch {
+    // ignore
+  }
+}

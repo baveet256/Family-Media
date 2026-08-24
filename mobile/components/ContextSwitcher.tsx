@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { fonts, theme } from '@/lib/theme';
 
 export function ContextSwitcher() {
   const router = useRouter();
@@ -123,50 +124,79 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     maxWidth: 220,
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    backgroundColor: theme.accentSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.line,
   },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#111', flexShrink: 1 },
-  chipCaret: { fontSize: 12, color: '#666' },
+  chipText: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 13,
+    color: theme.ink,
+    flexShrink: 1,
+  },
+  chipCaret: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: theme.muted,
+  },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(28,41,34,0.4)',
     justifyContent: 'flex-end',
   },
   sheet: {
     maxHeight: '70%',
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    backgroundColor: theme.paperElevated,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 16,
     paddingBottom: 28,
   },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 8 },
+  sheetTitle: {
+    fontFamily: fonts.display,
+    fontSize: 20,
+    color: theme.ink,
+    marginBottom: 8,
+  },
   section: {
     marginTop: 12,
     marginBottom: 6,
+    fontFamily: fonts.bodyBold,
     fontSize: 12,
-    fontWeight: '700',
-    color: '#888',
+    color: theme.muted,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   row: {
     paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 4,
   },
-  rowSelected: { backgroundColor: '#f2f2f2' },
-  rowTitle: { fontSize: 16, fontWeight: '600', color: '#111' },
-  rowMeta: { marginTop: 2, fontSize: 13, color: '#777' },
+  rowSelected: { backgroundColor: theme.accentSoft },
+  rowTitle: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 16,
+    color: theme.ink,
+  },
+  rowMeta: {
+    marginTop: 2,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: theme.muted,
+  },
   manage: {
     marginTop: 12,
     paddingVertical: 14,
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#e5e5e5',
+    borderTopColor: theme.line,
   },
-  manageText: { fontWeight: '700', color: '#111' },
+  manageText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.accent,
+  },
 });

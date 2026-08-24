@@ -209,33 +209,38 @@ export class PostsService {
     }
 
     const familyIds = connection.memberships.map((m) => m.familyId);
-    const myMembership = await this.prisma.familyMembership.findFirst({
+    const myMemberships = await this.prisma.familyMembership.findMany({
       where: {
         userId,
         status: 'active',
         familyId: { in: familyIds },
       },
+      select: { familyId: true },
     });
-    if (!myMembership) {
+    if (!myMemberships.length) {
       throw new ForbiddenException('Not a member of this connection');
     }
+    const myFamilyIds = myMemberships.map((m) => m.familyId);
 
     const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50);
 
     let where: Prisma.PostWhereInput;
 
     if (connection.feedPolicy === 'separate_feeds') {
-      const focusFamilyId = opts.familyId ?? myMembership.familyId;
+      const focusFamilyId = opts.familyId ?? myFamilyIds[0];
       if (!familyIds.includes(focusFamilyId)) {
         throw new BadRequestException('familyId is not in this connection');
       }
-      // Connection members may toggle between member-family feeds
-      where = { familyId: focusFamilyId };
+      // Being connected to a family does not grant access to posts that family
+      // kept private — only their explicitly connection-shared posts.
+      where = myFamilyIds.includes(focusFamilyId)
+        ? { familyId: focusFamilyId }
+        : { familyId: focusFamilyId, connectionId, visibility: 'connection' };
     } else {
       // unified_feed: own-family posts + connection-shared posts from all member families
       where = {
         OR: [
-          { familyId: myMembership.familyId },
+          { familyId: { in: myFamilyIds } },
           {
             connectionId,
             visibility: 'connection',

@@ -17,6 +17,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { IsSafeUrl } from '../common/validators/is-safe-url';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/guards/auth.guard';
 import { TreeService } from './tree.service';
@@ -58,14 +59,16 @@ class UpdatePersonDto {
   @IsOptional()
   @IsString()
   @MinLength(1)
+  @MaxLength(80)
   firstName?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   lastName?: string;
 
   @IsOptional()
-  @IsString()
+  @IsSafeUrl()
   avatarUrl?: string | null;
 }
 

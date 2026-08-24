@@ -10,6 +10,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { IsSafeUrl } from '../../common/validators/is-safe-url';
 
 export enum GameTypeDto {
   family_awards = 'family_awards',
@@ -30,8 +31,7 @@ export class CreateRoundDto {
 
   /** Caption battle: the photo everyone captions. */
   @IsOptional()
-  @IsString()
-  @MaxLength(2000)
+  @IsSafeUrl()
   photoUrl?: string;
 
   /** How long the round stays open. Default 24h, max 7 days. */

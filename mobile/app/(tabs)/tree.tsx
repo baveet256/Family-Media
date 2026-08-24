@@ -23,6 +23,8 @@ import {
   type FamilyTree,
   type PersonDetail,
 } from '@/lib/api';
+import { fonts, theme } from '@/lib/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   CARD_H,
   PAD_Y,
@@ -392,6 +394,7 @@ function descentPaths(layout: TreeLayout) {
 
 export default function TreeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { token, activeFamily, context } = useAuth();
   const family = activeFamily;
   const connectionId = context?.connectionId ?? null;
@@ -639,6 +642,7 @@ export default function TreeScreen() {
   if (!family) {
     return (
       <View style={styles.centered}>
+        <Text style={styles.eyebrow}>Family Media</Text>
         <Text style={styles.title}>Family Tree</Text>
         <Text style={styles.subtitle}>Join or create a family first.</Text>
       </View>
@@ -648,6 +652,7 @@ export default function TreeScreen() {
   if (family.status === 'pending') {
     return (
       <View style={styles.centered}>
+        <Text style={styles.eyebrow}>Family Media</Text>
         <Text style={styles.title}>Family Tree</Text>
         <Text style={styles.subtitle}>
           Your membership is pending approval. The tree opens once you’re in.
@@ -657,20 +662,22 @@ export default function TreeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+      <Text style={styles.eyebrow}>Family Media</Text>
       <Text style={styles.title}>
         {connectionId
           ? context?.connection?.name || 'Connected families'
           : family.name}
       </Text>
+      <Text style={styles.subtitle}>Hold a face to peek · tap for details</Text>
 
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, styles.ring]} />
+          <View style={[styles.legendDot, styles.legendDotOn]} />
           <Text style={styles.legendText}>on the app</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, styles.ringPlaceholder]} />
+          <View style={[styles.legendDot, styles.legendDotOff]} />
           <Text style={styles.legendText}>not yet</Text>
         </View>
         <View style={styles.legendItem}>
@@ -900,41 +907,66 @@ export default function TreeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    paddingTop: 48,
-    backgroundColor: '#fafafa',
+    paddingHorizontal: 16,
+    backgroundColor: theme.paper,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#fafafa',
+    backgroundColor: theme.paper,
   },
-  title: { fontSize: 26, fontWeight: '700', color: '#111' },
-  subtitle: { marginTop: 6, fontSize: 15, color: '#666' },
-  error: { marginTop: 16, color: '#b91c1c' },
+  eyebrow: {
+    fontFamily: fonts.displaySoft,
+    fontSize: 14,
+    color: theme.gold,
+  },
+  title: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    color: theme.ink,
+    letterSpacing: -0.4,
+    marginTop: 2,
+  },
+  subtitle: {
+    marginTop: 4,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: theme.muted,
+  },
+  error: {
+    marginTop: 16,
+    fontFamily: fonts.bodyMed,
+    color: theme.danger,
+  },
 
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 16, height: 16, borderRadius: 8, padding: 0 },
+  legendDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2 },
+  legendDotOn: { backgroundColor: '#fff', borderColor: theme.line },
+  legendDotOff: { backgroundColor: '#f6efe4', borderColor: '#e2d0b6' },
   legendHeart: { fontSize: 13, color: '#e08aa8' },
-  legendText: { fontSize: 12, color: MUTED, fontWeight: '600' },
+  legendText: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 12,
+    color: MUTED,
+  },
 
   album: {
     flex: 1,
     marginTop: 12,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#fbf6ef',
+    backgroundColor: theme.paperElevated,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#e8dccb',
+    borderColor: theme.line,
   },
   familyLabel: {
     position: 'absolute',
     top: 16,
+    fontFamily: fonts.bodyBold,
     fontSize: 12,
-    fontWeight: '800',
     color: MUTED,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
@@ -985,11 +1017,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  peekInitial: { fontSize: 26, fontWeight: '700', color: MUTED },
-  peekName: { fontSize: 19, fontWeight: '700', color: INK },
-  peekStatus: { marginTop: 2, fontSize: 13, color: MUTED, fontStyle: 'italic' },
-  peekVia: { marginTop: 4, fontSize: 12, color: '#db2777', fontWeight: '700' },
-  peekFamily: { marginTop: 4, fontSize: 12, color: MUTED, fontWeight: '600' },
+  peekInitial: {
+    fontFamily: fonts.display,
+    fontSize: 26,
+    color: MUTED,
+  },
+  peekStatus: {
+    marginTop: 2,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: MUTED,
+    fontStyle: 'italic',
+  },
+  peekFamily: {
+    marginTop: 4,
+    fontFamily: fonts.bodyMed,
+    fontSize: 12,
+    color: MUTED,
+  },
   peekFacts: {
     gap: 4,
     paddingTop: 12,
@@ -1002,13 +1047,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: 'center',
-    backgroundColor: '#f3e3d0',
+    backgroundColor: theme.goldSoft,
   },
-  peekBtnText: { fontWeight: '700', color: INK },
-  peekBtnPrimary: { backgroundColor: '#c2410c' },
-  peekBtnPrimaryText: { fontWeight: '700', color: '#fff', fontSize: 15 },
-  peekBtnMuted: { backgroundColor: '#f6f1ea' },
-  peekBtnMutedText: { fontWeight: '600', color: MUTED },
+  peekBtnText: { fontFamily: fonts.bodyBold, color: theme.ink },
+  peekBtnPrimary: { backgroundColor: theme.accent },
+  peekBtnPrimaryText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.paperElevated,
+    fontSize: 15,
+  },
+  peekBtnMuted: { backgroundColor: theme.accentSoft },
+  peekBtnMutedText: { fontFamily: fonts.bodyMed, color: theme.muted },
+  peekName: {
+    fontFamily: fonts.displayMed,
+    fontSize: 19,
+    color: theme.ink,
+  },
+  peekVia: {
+    marginTop: 4,
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    color: theme.via,
+  },
   ring: {
     width: PORTRAIT,
     height: PORTRAIT,
@@ -1036,12 +1096,13 @@ const styles = StyleSheet.create({
   bridgeFlower: { position: 'absolute', top: -8, right: -4, fontSize: 15 },
   firstName: {
     marginTop: 7,
+    fontFamily: fonts.bodyBold,
     fontSize: 13,
-    fontWeight: '700',
     color: INK,
     textAlign: 'center',
   },
   lastName: {
+    fontFamily: fonts.body,
     fontSize: 11,
     color: MUTED,
     textAlign: 'center',
@@ -1050,8 +1111,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 80,
     textAlign: 'center',
+    fontFamily: fonts.bodyBold,
     fontSize: 9,
-    fontWeight: '800',
     color: '#d97fa4',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1060,21 +1121,24 @@ const styles = StyleSheet.create({
   refresh: {
     marginTop: 12,
     alignSelf: 'flex-start',
-    backgroundColor: '#111',
-    borderRadius: 10,
+    backgroundColor: theme.accent,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  refreshText: { color: '#fff', fontWeight: '700' },
+  refreshText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.paperElevated,
+  },
   sheetBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(28,41,34,0.4)',
   },
   sheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: theme.paperElevated,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 24,
     gap: 10,
     alignItems: 'center',
@@ -1083,40 +1147,53 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#eee',
+    backgroundColor: theme.accentSoft,
   },
   sheetAvatarFallback: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#e5e5e5',
+    backgroundColor: theme.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetTitle: { fontSize: 22, fontWeight: '700', color: '#111' },
+  sheetTitle: {
+    fontFamily: fonts.display,
+    fontSize: 22,
+    color: theme.ink,
+  },
   sheetBody: {
+    fontFamily: fonts.body,
     fontSize: 15,
-    color: '#444',
+    color: theme.inkSoft,
     lineHeight: 22,
     alignSelf: 'stretch',
   },
   relBlock: { alignSelf: 'stretch', gap: 8, marginTop: 4 },
   relRow: { gap: 2 },
   relLabel: {
+    fontFamily: fonts.bodyBold,
     fontSize: 12,
-    fontWeight: '700',
-    color: '#888',
+    color: theme.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  relValue: { fontSize: 15, color: '#222', lineHeight: 22 },
+  relValue: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: theme.ink,
+    lineHeight: 22,
+  },
   button: {
     marginTop: 8,
-    backgroundColor: '#111',
-    borderRadius: 12,
+    backgroundColor: theme.accent,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     alignSelf: 'stretch',
   },
-  buttonText: { color: '#fff', fontWeight: '700' },
+  buttonText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.paperElevated,
+  },
 });

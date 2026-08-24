@@ -4,24 +4,32 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AuthAtmosphere, AuthEntrance } from '@/components/AuthAtmosphere';
 import { useAuth } from '@/contexts/AuthContext';
+import { auth, authStyles } from '@/lib/authUi';
 import { presignMedia, updateMe, uploadMediaFile } from '@/lib/api';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { token, refresh } = useAuth();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [focus, setFocus] = useState<'first' | 'last' | null>(null);
 
   const pickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -43,11 +51,12 @@ export default function ProfileSetupScreen() {
       if (avatarUri) {
         const name = `avatar.${avatarUri.split('.').pop() || 'jpg'}`;
         const signed = await presignMedia(token, 'image', name);
-        const uploaded = await uploadMediaFile(token, signed.uploadUrl, signed.key, {
-          uri: avatarUri,
-          name,
-          type: 'image/jpeg',
-        });
+        const uploaded = await uploadMediaFile(
+          token,
+          signed.uploadUrl,
+          signed.key,
+          { uri: avatarUri, name, type: 'image/jpeg' },
+        );
         avatarUrl = uploaded.publicUrl;
       }
       await updateMe(token, {
@@ -64,93 +73,152 @@ export default function ProfileSetupScreen() {
     }
   };
 
+  const display =
+    [firstName.trim(), lastName.trim()].filter(Boolean).join(' ') || 'You';
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Your name</Text>
-      <Text style={styles.subtitle}>
-        First and last name — this becomes how family sees you.
-      </Text>
+    <View style={authStyles.root}>
+      <AuthAtmosphere />
+      <KeyboardAvoidingView
+        style={authStyles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.scroll,
+            {
+              paddingTop: insets.top + 36,
+              paddingBottom: insets.bottom + 24,
+            },
+          ]}>
+          <AuthEntrance delay={60}>
+            <Text style={authStyles.brandMark}>Family Media</Text>
+            <Text style={authStyles.title}>Who are you?</Text>
+            <Text style={authStyles.subtitle}>
+              This is how your family will know you in the tree, chats, and
+              stories.
+            </Text>
+          </AuthEntrance>
 
-      <Pressable style={styles.avatarBtn} onPress={() => void pickAvatar()}>
-        {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.avatar} />
-        ) : (
-          <Text style={styles.avatarPlaceholder}>Add photo</Text>
-        )}
-      </Pressable>
+          <AuthEntrance delay={200} style={styles.mid}>
+            <Pressable
+              style={styles.avatarBtn}
+              onPress={() => void pickAvatar()}>
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarEmpty}>
+                  <Text style={styles.avatarLetter}>
+                    {(firstName.trim() || '?').charAt(0).toUpperCase()}
+                  </Text>
+                  <Text style={styles.avatarHint}>Add photo</Text>
+                </View>
+              )}
+            </Pressable>
+            <Text style={styles.previewName}>{display}</Text>
 
-      <Text style={styles.label}>First name</Text>
-      <TextInput
-        style={styles.input}
-        value={firstName}
-        onChangeText={setFirstName}
-        placeholder="First name"
-        autoFocus
-      />
-      <Text style={styles.label}>Last name</Text>
-      <TextInput
-        style={styles.input}
-        value={lastName}
-        onChangeText={setLastName}
-        placeholder="Last name"
-      />
+            <Text style={[authStyles.label, { marginTop: 28 }]}>First name</Text>
+            <View
+              style={[
+                authStyles.inputShell,
+                focus === 'first' && authStyles.inputShellOn,
+              ]}>
+              <TextInput
+                style={authStyles.input}
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="First name"
+                placeholderTextColor={auth.creamDim}
+                autoFocus
+                selectionColor={auth.amber}
+                onFocus={() => setFocus('first')}
+                onBlur={() => setFocus(null)}
+              />
+            </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+            <Text style={[authStyles.label, { marginTop: 20 }]}>Last name</Text>
+            <View
+              style={[
+                authStyles.inputShell,
+                focus === 'last' && authStyles.inputShellOn,
+              ]}>
+              <TextInput
+                style={authStyles.input}
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Last name"
+                placeholderTextColor={auth.creamDim}
+                selectionColor={auth.amber}
+                onFocus={() => setFocus('last')}
+                onBlur={() => setFocus(null)}
+              />
+            </View>
 
-      <Pressable
-        style={[
-          styles.button,
-          (!firstName.trim() || busy) && styles.buttonDisabled,
-        ]}
-        disabled={!firstName.trim() || busy}
-        onPress={() => void onSave()}>
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Continue</Text>
-        )}
-      </Pressable>
+            {error ? <Text style={authStyles.error}>{error}</Text> : null}
+          </AuthEntrance>
+
+          <AuthEntrance delay={320}>
+            <Pressable
+              style={({ pressed }) => [
+                authStyles.button,
+                (!firstName.trim() || busy) && authStyles.buttonDisabled,
+                pressed && firstName.trim() && !busy && authStyles.buttonPressed,
+              ]}
+              disabled={!firstName.trim() || busy}
+              onPress={() => void onSave()}>
+              {busy ? (
+                <ActivityIndicator color={auth.ink} />
+              ) : (
+                <Text style={authStyles.buttonText}>Continue</Text>
+              )}
+            </Pressable>
+          </AuthEntrance>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, backgroundColor: '#fafafa' },
-  title: { fontSize: 28, fontWeight: '700', color: '#111' },
-  subtitle: { marginTop: 8, fontSize: 15, color: '#666' },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    justifyContent: 'space-between',
+    gap: 28,
+  },
+  mid: { gap: 4 },
   avatarBtn: {
-    marginTop: 24,
     alignSelf: 'center',
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#e8e8e8',
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(232,213,163,0.35)',
+    backgroundColor: 'rgba(232,213,163,0.08)',
+  },
+  avatar: { width: 108, height: 108 },
+  avatarEmpty: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    gap: 2,
   },
-  avatar: { width: 96, height: 96 },
-  avatarPlaceholder: { color: '#666', fontWeight: '600', fontSize: 13 },
-  label: { marginTop: 16, fontSize: 13, fontWeight: '600', color: '#888' },
-  input: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 17,
-    color: '#111',
+  avatarLetter: {
+    fontFamily: 'Fraunces_700Bold',
+    fontSize: 36,
+    color: auth.creamSoft,
   },
-  error: { marginTop: 12, color: '#b91c1c', fontSize: 14 },
-  button: {
-    marginTop: 24,
-    backgroundColor: '#111',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
+  avatarHint: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 12,
+    color: auth.creamFaint,
   },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  previewName: {
+    marginTop: 12,
+    textAlign: 'center',
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 15,
+    color: auth.creamMuted,
+  },
 });

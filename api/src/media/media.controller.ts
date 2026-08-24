@@ -12,11 +12,26 @@ import { ConfigService } from '@nestjs/config';
 import { diskStorage } from 'multer';
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
-import { extname, join } from 'path';
+import { join } from 'path';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { PresignMediaDto } from '../posts/dto/posts.dto';
 
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
+
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Only formats the app actually renders. Anything else (svg, html, pdf, bin)
+ * is rejected, since uploads are served back over HTTP.
+ */
+const ALLOWED_MIME_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+};
 
 function ensureUploadDir() {
   if (!existsSync(UPLOAD_DIR)) {
@@ -40,12 +55,7 @@ export class MediaController {
   @Post('presign')
   presign(@Body() dto: PresignMediaDto) {
     ensureUploadDir();
-    const ext =
-      dto.filename && extname(dto.filename)
-        ? extname(dto.filename).toLowerCase()
-        : dto.mediaType === 'video'
-          ? '.mp4'
-          : '.jpg';
+    const ext = dto.mediaType === 'video' ? '.mp4' : '.jpg';
     const key = `${randomUUID()}${ext}`;
     const base = this.publicBase();
     return {
@@ -54,7 +64,7 @@ export class MediaController {
       publicUrl: `${base}/uploads/${key}`,
       fields: { key },
       method: 'POST',
-      // Client should multipart upload with field "file" and "key"
+      // Client should multipart upload with field "file"
       mediaType: dto.mediaType,
     };
   }
@@ -67,30 +77,34 @@ export class MediaController {
           ensureUploadDir();
           cb(null, UPLOAD_DIR);
         },
-        filename: (req, file, cb) => {
-          const key =
-            typeof req.body?.key === 'string' && req.body.key.length > 0
-              ? req.body.key.replace(/[^a-zA-Z0-9._-]/g, '')
-              : `${randomUUID()}${extname(file.originalname) || '.bin'}`;
-          cb(null, key);
+        // Keys are always server-generated. A client-supplied name could
+        // traverse paths or overwrite another user's existing upload.
+        filename: (_req, file, cb) => {
+          const ext = ALLOWED_MIME_EXT[file.mimetype];
+          cb(null, `${randomUUID()}${ext}`);
         },
       }),
-      limits: { fileSize: 50 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!ALLOWED_MIME_EXT[file.mimetype]) {
+          return cb(
+            new BadRequestException(`Unsupported file type: ${file.mimetype}`),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+      limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
     }),
   )
-  upload(
-    @UploadedFile() file: Express.Multer.File | undefined,
-    @Body('key') key?: string,
-  ) {
+  upload(@UploadedFile() file: Express.Multer.File | undefined) {
     if (!file) {
       throw new BadRequestException('file is required');
     }
-    const filename = file.filename || key;
     const base = this.publicBase();
     return {
       ok: true,
-      key: filename,
-      publicUrl: `${base}/uploads/${filename}`,
+      key: file.filename,
+      publicUrl: `${base}/uploads/${file.filename}`,
       contentType: file.mimetype,
       size: file.size,
     };

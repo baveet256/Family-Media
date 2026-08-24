@@ -1,17 +1,18 @@
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
 export default function OnboardingLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShadowVisible: false,
-        headerStyle: { backgroundColor: '#fafafa' },
-        contentStyle: { backgroundColor: '#fafafa' },
-      }}>
-      <Stack.Screen
-        name="index"
-        options={{ title: 'Place yourself', headerBackVisible: false }}
-      />
-    </Stack>
+    <>
+      <StatusBar style="light" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#15241c' },
+          animation: 'fade',
+        }}>
+        <Stack.Screen name="index" />
+      </Stack>
+    </>
   );
 }

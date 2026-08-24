@@ -10,6 +10,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { IsSafeUrl } from '../../common/validators/is-safe-url';
 
 export enum ChatTypeDto {
   direct = 'direct',
@@ -66,7 +67,6 @@ export class SendMessageDto {
   body?: string;
 
   @IsOptional()
-  @IsString()
-  @MinLength(1)
+  @IsSafeUrl()
   mediaUrl?: string;
 }

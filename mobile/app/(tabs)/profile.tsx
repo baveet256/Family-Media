@@ -7,6 +7,7 @@ import {
   Image,
   Platform,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   Switch,
@@ -14,6 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { ContextSwitcher } from '@/components/ContextSwitcher';
@@ -25,9 +27,11 @@ import {
   updateMe,
   uploadMediaFile,
 } from '@/lib/api';
+import { fonts, theme } from '@/lib/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, families, token, refresh, signOut, activeFamily } = useAuth();
   const family = activeFamily ?? families[0];
   const [firstName, setFirstName] = useState(
@@ -156,10 +160,18 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{
+        padding: 24,
+        paddingTop: insets.top + 12,
+        paddingBottom: insets.bottom + 40,
+      }}
+      keyboardShouldPersistTaps="handled">
+      <Text style={styles.eyebrow}>Family Media</Text>
       <Text style={styles.title}>Profile</Text>
       <Text style={styles.meta}>{user?.phone}</Text>
-      <View style={{ marginTop: 12 }}>
+      <View style={{ marginTop: 14 }}>
         <ContextSwitcher />
       </View>
 
@@ -167,7 +179,13 @@ export default function ProfileScreen() {
         {avatarUrl ? (
           <Image source={{ uri: avatarUrl }} style={styles.avatar} />
         ) : (
-          <Text style={styles.avatarPlaceholder}>Add photo</Text>
+          <View style={styles.avatarEmpty}>
+            <Text style={styles.avatarLetter}>
+              {(firstName.trim() || user?.displayName || '?')
+                .charAt(0)
+                .toUpperCase()}
+            </Text>
+          </View>
         )}
       </Pressable>
       <Text style={styles.avatarHint}>Tap to change profile picture</Text>
@@ -193,15 +211,18 @@ export default function ProfileScreen() {
         style={styles.input}
         value={firstName}
         onChangeText={setFirstName}
+        placeholderTextColor={theme.faint}
       />
       <Text style={styles.label}>Last name</Text>
       <TextInput
         style={styles.input}
         value={lastName}
         onChangeText={setLastName}
+        placeholderTextColor={theme.faint}
       />
       <Text style={styles.preview}>
-        Display name: {[firstName.trim(), lastName.trim()].filter(Boolean).join(' ') || '—'}
+        Display name:{' '}
+        {[firstName.trim(), lastName.trim()].filter(Boolean).join(' ') || '—'}
       </Text>
 
       <Text style={styles.label}>Status</Text>
@@ -211,7 +232,7 @@ export default function ProfileScreen() {
         onChangeText={setStatus}
         maxLength={140}
         placeholder="Grandpa of six, gardener of one tomato plant"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={theme.faint}
       />
       <Text style={styles.preview}>
         Family sees this when they hold your photo in the tree.
@@ -224,10 +245,16 @@ export default function ProfileScreen() {
             style={styles.input}
             value={familyName}
             onChangeText={setFamilyName}
+            placeholderTextColor={theme.faint}
           />
           <View style={styles.row}>
             <Text style={styles.rowTitle}>Require approval to join</Text>
-            <Switch value={requireApproval} onValueChange={setRequireApproval} />
+            <Switch
+              value={requireApproval}
+              onValueChange={setRequireApproval}
+              trackColor={{ false: theme.line, true: theme.gold }}
+              thumbColor={requireApproval ? theme.paperElevated : '#eee'}
+            />
           </View>
         </>
       ) : null}
@@ -240,7 +267,7 @@ export default function ProfileScreen() {
         disabled={busy}
         onPress={() => void onSave()}>
         {busy ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={theme.paperElevated} />
         ) : (
           <Text style={styles.buttonText}>Save</Text>
         )}
@@ -262,68 +289,105 @@ export default function ProfileScreen() {
           <Text style={styles.deleteText}>Delete account</Text>
         </Pressable>
       ) : null}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    paddingTop: 48,
-    backgroundColor: '#fafafa',
+  container: { flex: 1, backgroundColor: theme.paper },
+  eyebrow: {
+    fontFamily: fonts.displaySoft,
+    fontSize: 14,
+    color: theme.gold,
   },
-  title: { fontSize: 28, fontWeight: '700', color: '#111' },
-  meta: { marginTop: 6, fontSize: 14, color: '#666' },
+  title: {
+    fontFamily: fonts.display,
+    fontSize: 32,
+    color: theme.ink,
+    letterSpacing: -0.4,
+    marginTop: 2,
+  },
+  meta: {
+    marginTop: 6,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: theme.muted,
+  },
   avatarBtn: {
-    marginTop: 16,
+    marginTop: 20,
     alignSelf: 'center',
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#e8e8e8',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: theme.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: theme.goldSoft,
   },
-  avatar: { width: 88, height: 88 },
-  avatarPlaceholder: { color: '#666', fontWeight: '600', fontSize: 12 },
+  avatar: { width: 96, height: 96 },
+  avatarEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  avatarLetter: {
+    fontFamily: fonts.display,
+    fontSize: 36,
+    color: theme.accent,
+  },
   avatarHint: {
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 8,
+    fontFamily: fonts.body,
     fontSize: 12,
-    color: '#888',
+    color: theme.muted,
   },
   linkBtn: {
-    marginTop: 16,
-    backgroundColor: '#111',
-    borderRadius: 12,
-    paddingVertical: 12,
+    marginTop: 20,
+    backgroundColor: theme.accent,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  linkBtnText: { color: '#fff', fontWeight: '700' },
+  linkBtnText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.paperElevated,
+  },
   linkBtnSecondary: {
     marginTop: 8,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 12,
+    backgroundColor: theme.paperElevated,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ddd',
+    borderColor: theme.line,
   },
-  linkBtnSecondaryText: { color: '#111', fontWeight: '700' },
-  label: { marginTop: 20, fontSize: 13, fontWeight: '600', color: '#888' },
-  preview: { marginTop: 8, fontSize: 13, color: '#555' },
+  linkBtnSecondaryText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.ink,
+  },
+  label: {
+    marginTop: 22,
+    fontFamily: fonts.bodyMed,
+    fontSize: 12,
+    color: theme.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  preview: {
+    marginTop: 8,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: theme.inkSoft,
+  },
   input: {
     marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    borderBottomWidth: 1.5,
+    borderBottomColor: theme.line,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 2,
+    paddingVertical: 12,
+    fontFamily: fonts.bodyMed,
     fontSize: 17,
-    color: '#111',
+    color: theme.ink,
   },
   row: {
     marginTop: 20,
@@ -332,28 +396,56 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  rowTitle: { fontSize: 15, color: '#111', flex: 1 },
-  ok: { marginTop: 14, color: '#15803d' },
-  error: { marginTop: 14, color: '#b91c1c' },
+  rowTitle: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 15,
+    color: theme.ink,
+    flex: 1,
+  },
+  ok: {
+    marginTop: 14,
+    fontFamily: fonts.bodyMed,
+    color: theme.accent,
+  },
+  error: {
+    marginTop: 14,
+    fontFamily: fonts.bodyMed,
+    color: theme.danger,
+  },
   button: {
     marginTop: 24,
-    backgroundColor: '#111',
-    borderRadius: 12,
+    backgroundColor: theme.accent,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
   secondaryBtn: {
     marginTop: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 12,
+    backgroundColor: theme.accentSoft,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  secondaryBtnText: { color: '#111', fontWeight: '700', fontSize: 15 },
+  secondaryBtnText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.accent,
+    fontSize: 15,
+  },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  buttonText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.paperElevated,
+    fontSize: 16,
+  },
   logout: { marginTop: 20, alignItems: 'center', padding: 12 },
-  logoutText: { color: '#b91c1c', fontWeight: '600' },
-  delete: { alignItems: 'center', padding: 8, marginBottom: 24 },
-  deleteText: { color: '#991b1b', fontWeight: '600', fontSize: 13 },
+  logoutText: {
+    fontFamily: fonts.bodyMed,
+    color: theme.danger,
+  },
+  delete: { alignItems: 'center', padding: 8 },
+  deleteText: {
+    fontFamily: fonts.bodyMed,
+    color: theme.danger,
+    fontSize: 13,
+  },
 });

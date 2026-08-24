@@ -1,18 +1,22 @@
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
 export default function AuthLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShadowVisible: false,
-        headerStyle: { backgroundColor: '#fafafa' },
-        contentStyle: { backgroundColor: '#fafafa' },
-      }}>
-      <Stack.Screen name="login" options={{ title: 'Sign in' }} />
-      <Stack.Screen name="otp" options={{ title: 'Enter code' }} />
-      <Stack.Screen name="profile-setup" options={{ title: 'Your name' }} />
-      <Stack.Screen name="create-family" options={{ title: 'Create family' }} />
-      <Stack.Screen name="join-code" options={{ title: 'Join with code' }} />
-    </Stack>
+    <>
+      <StatusBar style="light" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#15241c' },
+          animation: 'fade',
+        }}>
+        <Stack.Screen name="login" />
+        <Stack.Screen name="otp" />
+        <Stack.Screen name="profile-setup" />
+        <Stack.Screen name="create-family" />
+        <Stack.Screen name="join-code" />
+      </Stack>
+    </>
   );
 }

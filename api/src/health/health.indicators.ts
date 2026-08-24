@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   HealthCheckError,
   HealthIndicator,
@@ -6,6 +6,19 @@ import {
 } from '@nestjs/terminus';
 import { PrismaService } from '../prisma/prisma.service';
 import Redis from 'ioredis';
+import { isProduction } from '../config/env.validation';
+
+const healthLogger = new Logger('Health');
+
+/**
+ * /health is unauthenticated, so infrastructure error text (hostnames, driver
+ * details) is logged rather than returned to the caller in production.
+ */
+function healthDetail(scope: string, error: unknown): { message: string } {
+  const message = error instanceof Error ? error.message : String(error);
+  healthLogger.error(`${scope}: ${message}`);
+  return { message: isProduction() ? 'unavailable' : message };
+}
 
 @Injectable()
 export class DatabaseHealthIndicator extends HealthIndicator {
@@ -20,7 +33,7 @@ export class DatabaseHealthIndicator extends HealthIndicator {
     } catch (error) {
       throw new HealthCheckError(
         'Database check failed',
-        this.getStatus(key, false, { message: (error as Error).message }),
+        this.getStatus(key, false, healthDetail('Database check failed', error)),
       );
     }
   }
@@ -56,7 +69,7 @@ export class RedisHealthIndicator extends HealthIndicator {
       }
       throw new HealthCheckError(
         'Redis check failed',
-        this.getStatus(key, false, { message: (error as Error).message }),
+        this.getStatus(key, false, healthDetail('Redis check failed', error)),
       );
     }
   }

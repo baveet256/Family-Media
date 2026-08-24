@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
@@ -32,6 +33,8 @@ function generateInviteCode(): string {
 
 @Injectable()
 export class FamiliesService {
+  private readonly logger = new Logger('Families');
+
   constructor(private readonly prisma: PrismaService) {}
 
   private async requireAdmin(familyId: string, userId: string) {
@@ -150,8 +153,12 @@ export class FamiliesService {
     });
     if (!family) throw new NotFoundException('Family not found');
 
+    const serialized = this.serializeFamily(family);
     return {
-      family: this.serializeFamily(family),
+      family:
+        membership.status === 'active'
+          ? serialized
+          : { ...serialized, inviteCode: null },
       role: membership.role,
       status: membership.status,
     };
@@ -191,10 +198,9 @@ export class FamiliesService {
 
     const phone = dto.phone.trim();
     const deepLink = `familymedia://join?code=${family.inviteCode}`;
-    // SMS stub — replace with Twilio/WhatsApp later
-    console.log(
-      `[Invite SMS stub] to=${phone} family="${family.name}" code=${family.inviteCode} link=${deepLink}`,
-    );
+    // SMS stub — replace with Twilio/WhatsApp later. Never log the recipient
+    // phone or the invite code: logs are long-lived and widely readable.
+    this.logger.log(`Invite issued for family ${family.id}`);
 
     return {
       ok: true,

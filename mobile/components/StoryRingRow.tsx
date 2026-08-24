@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { StoryRing } from '@/lib/api';
+import { fonts, theme } from '@/lib/theme';
 
 type Props = {
   familyId: string;
@@ -83,28 +84,37 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 2,
   },
-  ringUnseen: { borderColor: '#111' },
-  ringSeen: { borderColor: '#d4d4d4' },
+  ringUnseen: { borderColor: theme.gold },
+  ringSeen: { borderColor: theme.line },
   avatar: {
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: '#e5e5e5',
+    backgroundColor: theme.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addAvatar: {
     borderWidth: 2,
-    borderColor: '#111',
+    borderColor: theme.accent,
     borderStyle: 'dashed',
-    backgroundColor: '#fff',
+    backgroundColor: theme.paperElevated,
   },
-  addPlus: { fontSize: 22, fontWeight: '700', color: '#111' },
-  initial: { fontSize: 22, fontWeight: '700', color: '#111' },
+  addPlus: {
+    fontFamily: fonts.display,
+    fontSize: 22,
+    color: theme.accent,
+  },
+  initial: {
+    fontFamily: fonts.displayMed,
+    fontSize: 22,
+    color: theme.inkSoft,
+  },
   label: {
     marginTop: 6,
+    fontFamily: fonts.bodyMed,
     fontSize: 11,
-    color: '#444',
+    color: theme.inkSoft,
     textAlign: 'center',
     width: 72,
   },

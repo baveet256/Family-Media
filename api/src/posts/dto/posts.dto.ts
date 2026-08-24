@@ -12,6 +12,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { IsSafeUrl } from '../../common/validators/is-safe-url';
 
 export enum MediaTypeDto {
   image = 'image',
@@ -27,12 +28,11 @@ export class PostMediaItemDto {
   @IsEnum(MediaTypeDto)
   mediaType!: MediaTypeDto;
 
-  @IsString()
-  @MinLength(1)
+  @IsSafeUrl()
   url!: string;
 
   @IsOptional()
-  @IsString()
+  @IsSafeUrl()
   thumbnailUrl?: string;
 
   @IsOptional()
@@ -100,5 +100,6 @@ export class PresignMediaDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   contentType?: string;
 }

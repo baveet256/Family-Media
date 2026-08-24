@@ -2,24 +2,32 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AuthAtmosphere, AuthEntrance } from '@/components/AuthAtmosphere';
 import { useAuth } from '@/contexts/AuthContext';
+import { auth, authStyles } from '@/lib/authUi';
 import { createFamily } from '@/lib/api';
 
 export default function CreateFamilyScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { token, refresh } = useAuth();
   const [name, setName] = useState('');
   const [requireApproval, setRequireApproval] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
 
   const onCreate = async () => {
     if (!token) return;
@@ -37,87 +45,125 @@ export default function CreateFamilyScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create your family</Text>
-      <Text style={styles.subtitle}>
-        You’ll be the admin and can invite others with a code or QR.
-      </Text>
+    <View style={authStyles.root}>
+      <AuthAtmosphere />
+      <KeyboardAvoidingView
+        style={authStyles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.scroll,
+            {
+              paddingTop: insets.top + 36,
+              paddingBottom: insets.bottom + 24,
+            },
+          ]}>
+          <AuthEntrance delay={60}>
+            <Text style={authStyles.brandMark}>Family Media</Text>
+            <Text style={authStyles.title}>Start a family</Text>
+            <Text style={authStyles.subtitle}>
+              You’re the admin. Invite others with a code — or join one that
+              already exists.
+            </Text>
+          </AuthEntrance>
 
-      <Text style={styles.label}>Family name</Text>
-      <TextInput
-        style={styles.input}
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. The Horas"
-        autoFocus
-      />
+          <AuthEntrance delay={200} style={styles.mid}>
+            <Text style={authStyles.label}>Family name</Text>
+            <View
+              style={[
+                authStyles.inputShell,
+                focused && authStyles.inputShellOn,
+              ]}>
+              <TextInput
+                style={authStyles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="e.g. The Sharma Family"
+                placeholderTextColor={auth.creamDim}
+                autoFocus
+                selectionColor={auth.amber}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+              />
+            </View>
 
-      <View style={styles.row}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>Require approval</Text>
-          <Text style={styles.rowHint}>
-            Join requests stay pending until Phase 2 approval.
-          </Text>
-        </View>
-        <Switch value={requireApproval} onValueChange={setRequireApproval} />
-      </View>
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>Require approval</Text>
+                <Text style={styles.rowHint}>
+                  New members wait until you let them in.
+                </Text>
+              </View>
+              <Switch
+                value={requireApproval}
+                onValueChange={setRequireApproval}
+                trackColor={{
+                  false: 'rgba(232,213,163,0.2)',
+                  true: auth.amber,
+                }}
+                thumbColor={requireApproval ? auth.cream : '#cfcfcf'}
+              />
+            </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+            {error ? <Text style={authStyles.error}>{error}</Text> : null}
+          </AuthEntrance>
 
-      <Pressable
-        style={[styles.button, (!name.trim() || busy) && styles.buttonDisabled]}
-        disabled={!name.trim() || busy}
-        onPress={() => void onCreate()}>
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Create family</Text>
-        )}
-      </Pressable>
+          <AuthEntrance delay={320}>
+            <Pressable
+              style={({ pressed }) => [
+                authStyles.button,
+                (!name.trim() || busy) && authStyles.buttonDisabled,
+                pressed && name.trim() && !busy && authStyles.buttonPressed,
+              ]}
+              disabled={!name.trim() || busy}
+              onPress={() => void onCreate()}>
+              {busy ? (
+                <ActivityIndicator color={auth.ink} />
+              ) : (
+                <Text style={authStyles.buttonText}>Create family</Text>
+              )}
+            </Pressable>
 
-      <Pressable
-        style={styles.link}
-        onPress={() => router.push('/(auth)/join-code')}>
-        <Text style={styles.linkText}>I have an invite code</Text>
-      </Pressable>
+            <Pressable
+              style={authStyles.ghost}
+              onPress={() => router.push('/(auth)/join-code')}>
+              <Text style={authStyles.ghostText}>I have an invite code →</Text>
+            </Pressable>
+          </AuthEntrance>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, backgroundColor: '#fafafa' },
-  title: { fontSize: 28, fontWeight: '700', color: '#111' },
-  subtitle: { marginTop: 8, fontSize: 15, color: '#666', lineHeight: 22 },
-  label: { marginTop: 28, fontSize: 13, fontWeight: '600', color: '#888' },
-  input: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 17,
-    color: '#111',
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    justifyContent: 'space-between',
+    gap: 28,
   },
+  mid: { gap: 4 },
   row: {
-    marginTop: 24,
+    marginTop: 28,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  rowTitle: { fontSize: 16, fontWeight: '600', color: '#111' },
-  rowHint: { marginTop: 4, fontSize: 13, color: '#888' },
-  error: { marginTop: 12, color: '#b91c1c', fontSize: 14 },
-  button: {
-    marginTop: 28,
-    backgroundColor: '#111',
-    borderRadius: 12,
+    gap: 14,
     paddingVertical: 14,
-    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(232,213,163,0.18)',
   },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  link: { marginTop: 20, alignItems: 'center' },
-  linkText: { color: '#111', fontWeight: '600', fontSize: 15 },
+  rowTitle: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 16,
+    color: auth.cream,
+  },
+  rowHint: {
+    marginTop: 4,
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 13,
+    lineHeight: 18,
+    color: auth.creamFaint,
+  },
 });
